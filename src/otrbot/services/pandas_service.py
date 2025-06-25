@@ -51,7 +51,7 @@ def read_excel_file(excel_file, sheet_name) -> Stack:
     'decision_sum_content':'string'               
   })
   for row in df.itertuples(index=False):
-    master = Master(rowid=row.rowid, kid=row.kid, regid=row.regid, otrid=row.otrid, aht=row.aht, category=row.category)
+    master = Master(rowid=row.rowid, kid=row.kid, regid=row.regid, otrid=row.otrid, aht=row.aht, form=row.form, category=row.category)
     address = Address(postal_code=row.postal_code, city=row.city, street=row.street, house_number=row.house_number, region=row.region)
     denomination = Denomination(claim_name=row.claim_name, claim_source_name=row.claim_source_name, claim_summary=row.claim_summary, claim_goal=row.claim_goal)
     deadline = Deadline(claim_submission_date=row.claim_submission_date, decision_date=row.decision_date, decision_support_begin=row.decision_support_begin, decision_support_finish=row.decision_support_finish, contract_entry_date=row.contract_entry_date)
