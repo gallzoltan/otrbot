@@ -1,0 +1,29 @@
+[project]
+name = "otrbot"
+version = "0.1.0"
+description = "OTR Bot for ÖGF"
+readme = "README.md"
+authors = [
+    { name = "Gáll Zoltán", email = "gallzoltan@gmail.com" }
+]
+requires-python = ">=3.12.10"
+dependencies = [
+    "argparse>=1.4.0",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.0",
+    "python-dotenv>=1.1.1",
+    "selenium>=4.33.0",
+    "unidecode>=1.4.0",
+]
+
+[project.scripts]
+otrbot = "otrbot:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
