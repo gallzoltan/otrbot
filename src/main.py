@@ -93,7 +93,8 @@ def main() -> int:
     #   .run(round=round)
     success = runner.load_datas(excel_file_path=args.file, sheet_name='betolt') \
       .start_driver(options=get_driver_options(), system=config.system, headless=False) \
-      .login_otr(url=config.url, username=config.username, password=config.password) #.run(round=round_num)
+      .login_otr(url=config.url, username=config.username, password=config.password) \
+      .run(round=round_num)
     
     return 0 if success else 1
   except Exception as e:
