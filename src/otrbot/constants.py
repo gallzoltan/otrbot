@@ -1,5 +1,27 @@
 from enum import Enum
+from typing import Tuple
 
+class TimeoutConfig:
+  """Centralized timeout configuration for WebDriver operations"""
+  SHORT = 10      # Quick operations
+  DEFAULT = 20   # Standard operations  
+  MEDIUM = 50    # Form submissions, page loads
+  LONG = 100     # Heavy operations, file uploads
+
+class WebDriverConfig:
+  """Centralized WebDriver configuration"""
+  DEFAULT_OPTIONS: Tuple[str, ...] = (
+    "--no-sandbox",
+    "--disable-extensions",
+    "--disable-dev-shm-usage", 
+    "--disable-gpu",
+    "--disable-popup-blocking"
+  )
+  
+  HEADLESS_OPTIONS: Tuple[str, ...] = DEFAULT_OPTIONS + (
+    "--headless",
+    "--window-size=1920,1080"
+  )
 
 class Navigate(Enum):
   MENU_TAMOGATASOK = "//div[@id='menu_tamogatasok']/div"

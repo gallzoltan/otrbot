@@ -1,4 +1,6 @@
 import logging
+from typing import Optional, Tuple
+from otrbot.constants import TimeoutConfig, WebDriverConfig
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 # from selenium.webdriver.firefox.service import Service as FirefoxService
@@ -13,11 +15,12 @@ from selenium.common.exceptions import StaleElementReferenceException
 from selenium.common.exceptions import ElementClickInterceptedException
 
 class WebDriver:
-  def __init__(self, argumens: tuple, os: str = 'windows', headless: bool = False):
+  def __init__(self, arguments: Tuple[str, ...] = None, os: str = 'windows', headless: bool = False):
+    options = arguments or WebDriverConfig.DEFAULT_OPTIONS
     self.headless = headless
     self.options = Options()
     self.options.headless = self.headless
-    self._set_arguments(argumens)
+    self._set_arguments(options)
     if os == 'windows':
       self.driver = webdriver.Firefox(options=self.options)
     # else:
@@ -30,10 +33,10 @@ class WebDriver:
     self.driver.close()
     self._logger.info('Close web driver')
   
-  def catchError(self, how, what):
+  def catchError(self, how: str, what: str) -> Optional[str]:
     try:
-      el = WebDriverWait(self.driver, timeout=20).until(EC.presence_of_element_located((how, what)))
-      WebDriverWait(self.driver, timeout=20).until(EC.visibility_of(el))
+      el = WebDriverWait(self.driver, timeout=TimeoutConfig.DEFAULT).until(EC.presence_of_element_located((how, what)))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.DEFAULT).until(EC.visibility_of(el))
       result = el.text      
       return result
     except (NoSuchElementException, StaleElementReferenceException, TimeoutException) as e:
@@ -42,20 +45,23 @@ class WebDriver:
   
   def clickElement(self, how, what):
     try: 
-      el = WebDriverWait(self.driver, timeout=100).until(EC.presence_of_element_located((how, what)))
-      WebDriverWait(self.driver, timeout=50).until(EC.visibility_of(el))
-      WebDriverWait(self.driver, timeout=50).until(EC.element_to_be_clickable(el))
+      el = WebDriverWait(self.driver, timeout=TimeoutConfig.LONG).until(EC.presence_of_element_located((how, what)))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.visibility_of(el))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.element_to_be_clickable(el))
       # webdriver.ActionChains(self.driver).move_to_element(el).click(el).perform()
       el.click()  
       return True          
     except (NoSuchElementException, StaleElementReferenceException, TimeoutException) as e: 
-      self._logger.error(e)
-    return False
+      self._logger.error(f"Failed to click element {what}: {e}")
+      return False
+    except Exception as e:
+      self._logger.error(f"Unexpected error clicking element {what}: {e}")
+      return False
   
   def sendKeys(self, how, what, value):
     try:
-      el = WebDriverWait(self.driver, timeout=50).until(EC.presence_of_element_located((how, what)))
-      WebDriverWait(self.driver, timeout=50).until(EC.visibility_of(el))
+      el = WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.presence_of_element_located((how, what)))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.visibility_of(el))
       el.clear()
       el.send_keys(value)
       el.send_keys(Keys.TAB)
@@ -66,14 +72,14 @@ class WebDriver:
 
   def selectBySendKeys(self, how:str, what:str, value:str):
     try:
-      el = WebDriverWait(self.driver, timeout=20).until(EC.presence_of_element_located((how, what)))
-      WebDriverWait(self.driver, timeout=10).until(EC.visibility_of(el))
+      el = WebDriverWait(self.driver, timeout=TimeoutConfig.DEFAULT).until(EC.presence_of_element_located((how, what)))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.SHORT).until(EC.visibility_of(el))
       el.clear()
       el.send_keys(value)
       # el.send_keys(Keys.ARROW_DOWN)
       selId = el.get_attribute("aria-owns")
-      first_option = WebDriverWait(self.driver, timeout=20).until(EC.visibility_of_element_located((By.XPATH, f"//li[@id='{selId}-option-0']")))
-      WebDriverWait(self.driver, timeout=10).until(EC.element_to_be_clickable(first_option))
+      first_option = WebDriverWait(self.driver, timeout=TimeoutConfig.DEFAULT).until(EC.visibility_of_element_located((By.XPATH, f"//li[@id='{selId}-option-0']")))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.SHORT).until(EC.element_to_be_clickable(first_option))
       first_option.click()
       return True
     except (NoSuchElementException, StaleElementReferenceException, TimeoutException) as e:
@@ -82,8 +88,8 @@ class WebDriver:
   
   def selectOption(self, how:str, what:str, value:str):
     try:
-      el = WebDriverWait(self.driver, timeout=50).until(EC.presence_of_element_located((how, what)))
-      WebDriverWait(self.driver, timeout=50).until(EC.visibility_of(el))
+      el = WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.presence_of_element_located((how, what)))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.visibility_of(el))
       # WebDriverWait(self.driver, timeout=50).until(EC.element_to_be_clickable(el))
       # WebDriverWait(self.driver, timeout=50).until(EC.element_to_be_selected(el))
       Select(el).select_by_visible_text(value)
@@ -94,8 +100,8 @@ class WebDriver:
 
   def selectOptionByValue(self, how:str, what:str, value:str):
     try:
-      el = WebDriverWait(self.driver, timeout=50).until(EC.presence_of_element_located((how, what)))
-      WebDriverWait(self.driver, timeout=50).until(EC.visibility_of(el))
+      el = WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.presence_of_element_located((how, what)))
+      WebDriverWait(self.driver, timeout=TimeoutConfig.MEDIUM).until(EC.visibility_of(el))
       # WebDriverWait(self.driver, timeout=50).until(EC.element_to_be_clickable(el))
       # WebDriverWait(self.driver, timeout=50).until(EC.element_to_be_selected(el))
       # el = driver.execute_script("document.querySelector('#statusz > option:nth-child(3)')")            
@@ -111,8 +117,8 @@ class WebDriver:
 
   def findGridElementRows(self):
     try:
-      el = WebDriverWait(self.driver, timeout=20).until(EC.presence_of_element_located((By.XPATH, "//div[contains(@id, '-grid-container')]/div[2]/div")))      
-      WebDriverWait(self.driver, timeout=20).until(EC.visibility_of(el))
+      el = WebDriverWait(self.driver, timeout=TimeoutConfig.DEFAULT).until(EC.presence_of_element_located((By.XPATH, "//div[contains(@id, '-grid-container')]/div[2]/div")))      
+      WebDriverWait(self.driver, timeout=TimeoutConfig.DEFAULT).until(EC.visibility_of(el))
       grid = el.find_element(By.XPATH, "//div[@role='grid']/div[2]/div")
       rows = grid.find_elements(By.XPATH, ".//div[@role='row']")
       return rows         
@@ -130,6 +136,6 @@ class WebDriver:
   #     self._logger.error(e)
   #   return None  
 
-  def _set_arguments(self, argumens: tuple):
-    for arg in argumens:
+  def _set_arguments(self, arguments: tuple):
+    for arg in arguments:
       self.options.add_argument(arg)

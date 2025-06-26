@@ -1,15 +1,16 @@
-import otrbot as bot
 import logging
 import time
+import otrbot
+from typing import Dict, Callable
 from .constants import Navigate, SubmitForms
 from selenium.webdriver.common.by import By
 
 class ModuleRunner:  
   def __init__(self, supporter: str):
-    self._bot = bot
+    self._bot = otrbot
     self._logger = logging.getLogger()
     self._supporter = supporter
-    self._rounds = {
+    self._rounds: Dict[int, Callable] = {
       1: self._run_round1,
       2: self._run_round2,
       3: self._run_round3
@@ -21,18 +22,24 @@ class ModuleRunner:
     return self
 
   def start_driver(self, options: tuple, system: str, headless: bool = False):
-    self.browser = self._bot.services.WebDriver(argumens=options, os=system,  headless=headless)    
+    self.browser = self._bot.services.WebDriver(arguments=options, os=system,  headless=headless)    
     return self
 
-  def login_otr(self, url, username, password):
+  def login_otr(self, url: str, username: str, password: str):
     self._bot.services.LoginOtr(self.browser).login(url, username, password)    
     return self
 
   def run(self, round) -> None:
-    if round in self._rounds:
+    if round not in self._rounds:
+      self._logger.error(f"Unsupported round: {round}")
+      return False
+      
+    try:
       self._rounds[round]()
-    else:
-      self._logger.error(f"The round {round} is not supported")   
+      return True
+    except Exception as e:
+      self._logger.error(f"Error running round {round}: {e}")
+      return False  
   
   def _run_round1(self) -> None:   
     self._navigateTab(main_tab=Navigate.MENU_TAMOGATASOK.value)
