@@ -12,6 +12,7 @@ otrbot-portable/whl/*
 # Virtual environments
 .venv
 
+.env
 *.log
 *.xls
 *.xlsx
