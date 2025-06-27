@@ -1,9 +1,7 @@
-import os
 import sys
 import argparse
 import otrbot.otr_logging as logging
 from pathlib import Path
-from dotenv import load_dotenv
 from otrbot.constants import WebDriverConfig
 from otrbot.runner import ModuleRunner
 from otrbot.config import Config
@@ -42,12 +40,6 @@ def get_driver_options():
   # "--disable-features=NetworkService",
   return WebDriverConfig.DEFAULT_OPTIONS
 
-# def get_env_vars(env):
-#   if env == "dev":
-#     return os.getenv('SYSTEM'), os.getenv("OTR_EDU_URL"), os.getenv("OTR_EDU_USERNAME"), os.getenv("OTR_EDU_PASSWORD")
-#   else:
-#     return os.getenv('SYSTEM'), os.getenv("OTR_URL"), os.getenv("OTR_USERNAME"), os.getenv("OTR_PASSWORD")
-
 def main() -> int:
   try:
     parser = argparse.ArgumentParser(description="OTR Bot for ÖGF")
@@ -62,10 +54,7 @@ def main() -> int:
     if not validate_arguments(args):
       return 1
 
-    # logging.logger.info(f"Start script with: {args.status} status and {args.file} file")
-    load_dotenv()
     config = Config.from_env()
-    # system, url, username, password = get_env_vars(os.getenv("ENV"))
     
     status_dict = {
       "Benyújtás": (1, "Start submission"),
@@ -75,22 +64,12 @@ def main() -> int:
     }
 
     if args.status not in status_dict:
-        logging.logger.error(f"Invalid status: {args.status}")
-        return 1
+      logging.logger.error(f"Invalid status: {args.status}")
+      return 1
     round_num, log_message = status_dict[args.status]
     logging.logger.info(log_message)
-    # if args.status in status_dict:
-    #   round, log_message = status_dict[args.status]
-    #   logging.logger.info(log_message)
-    # else:
-    #   logging.logger.error(f"Invalid status: {args.status}")
-    #   return
 
     runner = ModuleRunner(supporter=args.supporter)
-    # runner.load_datas(excel_file_path=args.file, sheet_name='betolt') \
-    #   .start_driver(options=get_driver_options(), system=system, headless=False) \
-    #   .login_otr(url=url, username=username, password=password) \
-    #   .run(round=round)
     success = runner.load_datas(excel_file_path=args.file, sheet_name='betolt') \
       .start_driver(options=get_driver_options(), system=config.system, headless=False) \
       .login_otr(url=config.url, username=config.username, password=config.password) \
