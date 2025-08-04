@@ -2,6 +2,7 @@ import sys
 import argparse
 import otrbot.otr_logging as logging
 from pathlib import Path
+from dotenv import load_dotenv
 from otrbot.constants import WebDriverConfig
 from otrbot.runner import ModuleRunner
 from otrbot.config import Config
@@ -41,6 +42,7 @@ def get_driver_options():
   return WebDriverConfig.DEFAULT_OPTIONS
 
 def main() -> int:
+  load_dotenv()
   try:
     parser = argparse.ArgumentParser(description="OTR Bot for ÖGF")
     parser.add_argument('-s', '--status', type=str, required=True, help="A betöltés státusza [Benyújtás, Döntés, Szerződés, Lezárás]") 
