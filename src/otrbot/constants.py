@@ -58,7 +58,7 @@ class SubmitForms(Enum):
   ERROR_NOTICE = "//*[@id='otr_angular_inner']/div/div/div/div[1]/div/span[2]"
   BUTTON_VALIDATION = "//button[@id='tamogatasi_igeny_rogzitese:ellenorzes']"
   BUTTON_SAVE = "//button[@id='tamogatasi_igeny_rogzitese:mentes']"
-  # BUTTON_FIX = "//button[@id='tamogatasi_igeny_rogzitese:RogzitesKesz']"
+  CONFIRM_OK_BUTTON = "//button[@id='confirmOkBtn']" 
   BUTTON_FIX = "//button[@id='tamogatasi_igeny_rogzitese:{what}']"
   BUTTON_CLOSE = "//*[@id='tamogatasi_igeny_rogzitese:Lezaras']"
   BUTTON_KILEP = "//button[@id='tamogatasi_igeny_rogzitese:visszalepes']"
