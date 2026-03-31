@@ -155,6 +155,10 @@ class SubmissionService:
       self._browser.selectOption(By.XPATH, ConstantSubmission.SELECT_CLAIM_SUPPORT_FORMAT.value[i], master.form)
       self._browser.selectOption(By.XPATH, ConstantSubmission.SELECT_CLAIM_SUPPORT_REGIO.value[i], address.region)
       self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_SUPPORT_AMOUNT.value[i], amount.claim_sum_content)
+
+  def validateButton(self):
+    # itt kell majd a hitelesítést elvégezni //*[@id="tamogatasi_igeny_rogzites:hitelesites"]
+    self._browser.clickElement(By.XPATH, "//*[@id='tamogatasi_igeny_rogzites:hitelesites']")
   
   def __split_by_dots(self, s):
     res = []
