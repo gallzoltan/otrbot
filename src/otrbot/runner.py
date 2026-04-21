@@ -56,21 +56,25 @@ class ModuleRunner:
         submission.fillClaimPlaceOfUseTab(address=address)
         self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIM.value, sub_tab=Navigate.TAB_SUB_CLAIM.value, index=2)
         submission.fillClaimSupportCategoriesTab(master=master, address=address, amount=amount)
-      if(self._saveForm()):
-        self._logger.debug(f"Rögzítés mentve: {address.city}")        
-        self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIMING.value, sub_tab=Navigate.TAB_SUB_CLAIMING.value, index=0)                
-        with self._bot.services.SubmissionService(self.browser) as submission:
-          submission.validateButton()
-          time.sleep(2)
-          # "A hitelesítési kérés feladása sikertelen!" üzenet jelenik meg, a szerver nem hitelesíti a címet, de a gomb megnyomása nélkül nem lehet rögzíteni a támogatási igényt.
-        self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIM.value)
-        # self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIM.value, sub_tab=Navigate.TAB_SUB_CLAIM.value, index=2)
-        if(self._fixingForm("RogzitesKesz")):
-          self._logger.debug(f"Rögzítés kész: {address.city}")
-        else:
-          self._logger.error(f"Rögzítés hiba id:{master.rowid} city:{address.city}")
+      if(self._fixingForm("RogzitesKesz")):
+        self._logger.debug(f"Rögzítés kész: {address.city}")
       else:
-        self._logger.error(f"Mentés hiba id:{master.rowid} city:{address.city}")
+        self._logger.error(f"Rögzítés hiba id:{master.rowid} city:{address.city}")
+      # if(self._saveForm()):
+      #   self._logger.debug(f"Rögzítés mentve: {address.city}")        
+      #   self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIMING.value, sub_tab=Navigate.TAB_SUB_CLAIMING.value, index=0)                
+      #   with self._bot.services.SubmissionService(self.browser) as submission:
+      #     submission.validateButton()
+      #     time.sleep(2)
+      #     # "A hitelesítési kérés feladása sikertelen!" üzenet jelenik meg, a szerver nem hitelesíti a címet, de a gomb megnyomása nélkül nem lehet rögzíteni a támogatási igényt.
+      #   self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIM.value)
+      #   # self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIM.value, sub_tab=Navigate.TAB_SUB_CLAIM.value, index=2)
+      #   if(self._fixingForm("RogzitesKesz")):
+      #     self._logger.debug(f"Rögzítés kész: {address.city}")
+      #   else:
+      #     self._logger.error(f"Rögzítés hiba id:{master.rowid} city:{address.city}")
+      # else:
+      #   self._logger.error(f"Mentés hiba id:{master.rowid} city:{address.city}")
   
   def _run_round2(self) -> None:
     self._navigateTab(main_tab=Navigate.MENU_TAMOGATASOK.value)
@@ -142,7 +146,8 @@ class ModuleRunner:
     self.browser.clickElement(By.XPATH, SubmitForms.CONFIRM_OK_BUTTON.value)
     result = self.browser.catchError(By.XPATH, SubmitForms.ERROR_NOTICE.value)
     self._logger.info(result)
-    if("sikeresen megtörtént" in result or "hitelesítési kérés" in result):
+    # if("sikeresen megtörtént" in result or "hitelesítési kérés" in result):
+    if("sikeresen megtörtént" in result):
       return True
     else:
       return False
