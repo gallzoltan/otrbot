@@ -14,7 +14,7 @@ def validate_arguments(args) -> bool:
     logging.logger.error(f"File not found: {args.file}")
     return False
   
-  if args.supporter not in ["BM", "KTM"]:
+  if args.supporter not in ["BM", "KTM", "VTM"]:
     logging.logger.error(f"Invalid supporter: {args.supporter}")
     return False
       
@@ -47,7 +47,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="OTR Bot for ÖGF")
     parser.add_argument('-s', '--status', type=str, required=True, help="A betöltés státusza [Benyújtás, Döntés, Szerződés, Lezárás]") 
     parser.add_argument('-f', '--file', type=str, required=True, help="A betöltő fájl (*.xlsx)")
-    parser.add_argument('-sp', '--supporter', type=str, required=True, help="Támogató [BM, KTM]")
+    parser.add_argument('-sp', '--supporter', type=str, required=True, help="Támogató [BM, KTM, VTM]")
     parser.add_argument('-b', '--begin', type=int, required=False, help="Kezdő sor (4)")
     parser.add_argument('-e', '--end', type=int, required=False, help="Vég sor (0)")
     

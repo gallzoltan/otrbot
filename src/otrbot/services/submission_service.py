@@ -7,11 +7,10 @@ from otrbot.models import Master, Denomination, Deadline, Amount, Address
 
 class ConstantSubmission(Enum):
   CHECKBOX_CLAIM_COUNTRY_ID = "felhasznalasHelyszinek.orszagosFejlesztes"
-  # SUPPORTER_BM = "Belügyminisztérium Önkormányzati Államtitkárság (09)"
-  # SUPPORTER_KTM = "Közigazgatási és Területfejlesztési Minisztérium (2023.12.31-ig BMÖÁ) (09)"
   SUPPORTER = {
     "BM": "Belügyminisztérium Önkormányzati Államtitkárság (09)",
-    "KTM": "Közigazgatási és Területfejlesztési Minisztérium (2023.12.31-ig BMÖÁ) (09)"
+    "KTM": "Közigazgatási és Területfejlesztési Minisztérium (2023.12.31-ig BMÖÁ) (09)",
+    "VTM": "Vidék- és Településfejlesztési Minisztérium (2026.05.12-ig KTMÖÁ) (09)"
   }
 
   ''' Basic data TAB '''
