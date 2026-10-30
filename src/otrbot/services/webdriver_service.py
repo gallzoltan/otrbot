@@ -224,6 +224,8 @@ class WebDriver:
   def selectOption(self, how:str, what:str, value:str):
     try:
       el = self._wait(TimeoutConfig.MEDIUM).until(EC.visibility_of_element_located((how, what)))
+      # The options of popup selects are loaded after the select itself becomes visible
+      self._wait(TimeoutConfig.SHORT).until(lambda d: any(o.text.strip() == value.strip() for o in Select(el).options))
       Select(el).select_by_visible_text(value)
       return True
     except LOOKUP_ERRORS as e:
@@ -233,6 +235,7 @@ class WebDriver:
   def selectOptionByValue(self, how:str, what:str, value:str):
     try:
       el = self._wait(TimeoutConfig.MEDIUM).until(EC.visibility_of_element_located((how, what)))
+      self._wait(TimeoutConfig.SHORT).until(lambda d: any(o.get_attribute("value") == value for o in Select(el).options))
       Select(el).select_by_value(value)
       return True
     except LOOKUP_ERRORS as e:
