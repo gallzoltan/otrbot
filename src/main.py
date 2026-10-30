@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from otrbot.constants import WebDriverConfig
 from otrbot.runner import ModuleRunner
 from otrbot.config import Config
+from otrbot.journal import Journal
 
 
 def validate_arguments(args) -> bool:
@@ -48,8 +49,9 @@ def main() -> int:
     parser.add_argument('-s', '--status', type=str, required=True, help="A betöltés státusza [Benyújtás, Döntés, Szerződés, Lezárás]") 
     parser.add_argument('-f', '--file', type=str, required=True, help="A betöltő fájl (*.xlsx)")
     parser.add_argument('-sp', '--supporter', type=str, required=True, help="Támogató [BM, KTM, VTM]")
-    parser.add_argument('-b', '--begin', type=int, required=False, help="Kezdő sor (4)")
-    parser.add_argument('-e', '--end', type=int, required=False, help="Vég sor (0)")
+    parser.add_argument('-b', '--begin', type=int, required=False, help="Első feldolgozandó rowid (alapértelmezés: az első sor)")
+    parser.add_argument('-e', '--end', type=int, required=False, help="Utolsó feldolgozandó rowid (0 = az utolsó sorig)")
+    parser.add_argument('--headless', action='store_true', help="Böngésző ablak nélkül")
     
     args = parser.parse_args()
 
@@ -71,12 +73,19 @@ def main() -> int:
     round_num, log_message = status_dict[args.status]
     logging.logger.info(log_message)
 
-    runner = ModuleRunner(supporter=args.supporter)
-    success = runner.load_datas(excel_file_path=args.file, sheet_name='betolt') \
-      .start_driver(options=get_driver_options(), system=config.system, headless=False) \
-      .login_otr(url=config.url, username=config.username, password=config.password) \
-      .run(round=round_num)
-    
+    journal = Journal.for_excel(args.file)
+    logging.logger.info(f"Journal: {journal.path}")
+    runner = ModuleRunner(supporter=args.supporter, journal=journal)
+    try:
+      success = runner.load_datas(excel_file_path=args.file, sheet_name='betolt', begin=args.begin, end=args.end) \
+        .start_driver(options=get_driver_options(), system=config.system, headless=args.headless) \
+        .login_otr(url=config.url, username=config.username, password=config.password) \
+        .run(round=round_num)
+    finally:
+      runner.close()
+      logging.logger.info(f"Result exported to {journal.export(args.file, sheet_name='betolt')}")
+      journal.close()
+
     return 0 if success else 1
   except Exception as e:
     logging.logger.error(f"Unexpected error: {e}")

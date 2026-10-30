@@ -123,13 +123,13 @@ class SubmissionService:
 
     self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_SOURCE.value, denomination.claim_source_name[0:50])
     self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_SCOPE.value, master.activity) 
-    self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_NAME.value, denomination.claim_name)
+    self._browser.setValue(By.XPATH, ConstantSubmission.INPUT_CLAIM_NAME.value, denomination.claim_name)
     self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_DATE.value, deadline.claim_submission_date)
-    self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_SUMMARY.value, denomination.claim_summary)
+    self._browser.setValue(By.XPATH, ConstantSubmission.INPUT_CLAIM_SUMMARY.value, denomination.claim_summary)
     # self._browser.selectOption(By.XPATH, ConstantSubmission.SELECT_CLAIM_SUPPORTER.value, ConstantSubmission.SUPPORTER_BM.value if supporter == 'BM' else ConstantSubmission.SUPPORTER_KTM.value)     
     self._browser.selectOption(By.XPATH, ConstantSubmission.SELECT_CLAIM_SUPPORTER.value, ConstantSubmission.SUPPORTER.value[supporter]) 
     self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_AMOUNT.value, amount.claim_sum)
-    self._browser.sendKeys(By.XPATH, ConstantSubmission.INPUT_CLAIM_GOAL.value, denomination.claim_goal)
+    self._browser.setValue(By.XPATH, ConstantSubmission.INPUT_CLAIM_GOAL.value, denomination.claim_goal)
   
   def fillClaimPlaceOfUseTab(self, address: Address):
     if(self._browser.is_checked(ConstantSubmission.CHECKBOX_CLAIM_COUNTRY_ID.value)):

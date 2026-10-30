@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Tuple
+from typing import Dict, Tuple
 
 class TimeoutConfig:
   """Centralized timeout configuration for WebDriver operations"""
@@ -7,6 +7,7 @@ class TimeoutConfig:
   DEFAULT = 20   # Standard operations  
   MEDIUM = 50    # Form submissions, page loads
   LONG = 100     # Heavy operations, file uploads
+  POLL = 0.05    # WebDriverWait polling interval (Selenium default: 0.5)
 
 class WebDriverConfig:
   """Centralized WebDriver configuration"""
@@ -19,9 +20,19 @@ class WebDriverConfig:
   )
   
   HEADLESS_OPTIONS: Tuple[str, ...] = DEFAULT_OPTIONS + (
-    "--headless",
+    "-headless",
     "--window-size=1920,1080"
   )
+
+  # Firefox preferences that make the UI faster to drive
+  PREFERENCES: Dict[str, object] = {
+    "ui.prefersReducedMotion": 1,
+    # "permissions.default.image": 2,  # disable images - test in EDU first
+  }
+  # 'normal' waits for every resource, 'eager' only for DOMContentLoaded - test in EDU first
+  PAGE_LOAD_STRATEGY = "normal"
+  # Injected after page loads to skip CSS transitions/animations of dialogs and tabs
+  DISABLE_ANIMATIONS = True
 
 class Navigate(Enum):
   MENU_TAMOGATASOK = "//div[@id='menu_tamogatasok']/div"
@@ -63,6 +74,14 @@ class SubmitForms(Enum):
   BUTTON_CLOSE = "//*[@id='tamogatasi_igeny_rogzitese:Lezaras']"
   BUTTON_KILEP = "//button[@id='tamogatasi_igeny_rogzitese:visszalepes']"
   BUTTON_VISSZALEP = "//*[@id='tamogatasi_igeny_rogzitese:Visszalepes']"
+  # TODO: EDU-ban felderítendő - a rögzítés után megjelenő OTR azonosító mezője (üres = nincs kiolvasás)
+  OTR_ID = ""
+
+class RunnerConfig:
+  """Unattended run settings"""
+  MAX_ATTEMPTS = 2                # attempts per item before it is marked failed
+  MAX_CONSECUTIVE_FAILURES = 10   # stop the run, something is wrong system-wide
+  FAIL_DIR = "./logs/fail"        # screenshots and page sources of failed items
 
 class Categories(Enum):
   ''' categories '''

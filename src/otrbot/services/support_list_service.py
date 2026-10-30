@@ -43,15 +43,11 @@ class SupportListService:
   def selectCouncilOnSearchForm(self, kid, council, otrid, status) -> bool:
     self._browser.sendKeys(By.XPATH, FillSupportList.INPUT_TAZ.value, otrid)
     self._browser.clickElement(By.XPATH, FillSupportList.BUTTON_SEARCH.value)   
-    rows = self._browser.findGridElementRows()
-    rowlist = []
-    for row in rows:
-      cols = row.find_elements(By.XPATH, ".//div[@role='gridcell']")
-      collist = [{
-        'id': col.get_attribute('id'),
-        'title': col.find_element(By.XPATH, ".//div").text
-      } for col in cols]            
-      rowlist.append(SupportSearchTable(collist=collist))
+    rows = self._browser.readGrid()
+    if not rows:
+      self._logger.error(f"{council} : empty search result for {otrid}")
+      return False
+    rowlist = [SupportSearchTable(collist=collist) for collist in rows]
     clickId = self._getClickId(rows=rowlist, council=council, status=FillSupportList.STATUS.value[status])
     self._logger.debug(f"{council} : {FillSupportList.STATUS.value[status]}")
     if(clickId):

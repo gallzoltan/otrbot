@@ -17,3 +17,5 @@ otrbot-portable/whl/*
 *.xls
 *.xlsx
 *.whl
+*.journal.sqlite
+logs/
