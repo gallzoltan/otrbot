@@ -19,3 +19,4 @@ otrbot-portable/whl/*
 *.whl
 *.journal.sqlite
 logs/
+data/
