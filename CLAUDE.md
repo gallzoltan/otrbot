@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Current state of work, decisions and open tasks: read `docs/MEMO.md` at the start of a session and update it at the end.**
+
 ## Project Overview
 
 OTR Bot is a Selenium-based automation tool for the Hungarian OTR (Országos Támogatás–ellenőrzési Rendszer) government subsidy management system. It automates the submission, decision, contract, and closing processes for municipal subsidy applications.
