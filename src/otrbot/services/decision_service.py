@@ -3,6 +3,7 @@ from enum import Enum
 from selenium.webdriver.common.by import By
 from otrbot.constants import Categories
 from otrbot.models import Amount, Deadline, Master, Address
+from otrbot.services.webdriver_service import StepFailed
 
 class ConstantDecision(Enum):
   # Support basic
@@ -93,6 +94,9 @@ class DecisionService:
     # if(decision_basic.intermediary_org != '-'):
     #   self._browser.sendKeys(By.XPATH, self._const.INPUT_INTERMEDIARY_ORG, decision_basic.intermediary_org)
     self._browser.sendKeys(By.XPATH, self._const.INPUT_OTHER_AMOUNT.value, amount.decision_other_sum)
+    # Without the decision date the decision maker cannot be selected on the next tab
+    if not self._browser.driver.find_element(By.XPATH, self._const.INPUT_D_DATE.value).get_attribute("value"):
+      raise StepFailed("A döntés dátuma nem maradt meg a mezőben (az oldal felülírta)")
   
   def fillDecisionTab(self):
     self._browser.clickElement(By.XPATH, self._const.BUTTON_SELECT_D.value)

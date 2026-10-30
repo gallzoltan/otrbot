@@ -49,8 +49,8 @@ class Journal:
     return self.status(rowid, round) == OK
 
   def otrid(self, rowid) -> Optional[str]:
-    """The OTR id captured after the submission round, if any."""
-    row = self._conn.execute("SELECT otrid FROM items WHERE rowid = ? AND round = 1", (str(rowid),)).fetchone()
+    """The OTR id captured by any round (it is read from the search grid), if any."""
+    row = self._conn.execute("SELECT otrid FROM items WHERE rowid = ? AND otrid IS NOT NULL AND otrid != '' ORDER BY round LIMIT 1", (str(rowid),)).fetchone()
     return row[0] if row and row[0] else None
 
   def start(self, rowid, round: int):
@@ -74,20 +74,19 @@ class Journal:
     return dict(rows)
 
   def export(self, excel_file_path: str, sheet_name: str, out_path: Optional[str] = None) -> str:
-    """Writes the input rows extended with the status, error and OTR id of every round."""
+    """Writes the input rows extended with the captured OTR id and the status and error of every round."""
     out_path = out_path or str(Path(excel_file_path).with_name(f"{Path(excel_file_path).stem}_eredmeny.xlsx"))
     df = pd.read_excel(excel_file_path, sheet_name=sheet_name, skiprows=1)
     items = pd.read_sql_query("SELECT rowid, round, status, otrid, attempts, error FROM items", self._conn)
     df["_key"] = df["rowid"].astype(str)
+    df["otr_azonosito"] = [self.otrid(key) or "" for key in df["_key"]]
     for round, name in ROUND_NAMES.items():
       part = items[items["round"] == round]
       if part.empty:
         continue
       part = part.rename(columns={
-        "status": f"{name}_status", "attempts": f"{name}_probalkozas", "error": f"{name}_hiba", "otrid": f"{name}_otrid"
-      }).drop(columns=["round"])
-      if round != 1:
-        part = part.drop(columns=[f"{name}_otrid"])
+        "status": f"{name}_status", "attempts": f"{name}_probalkozas", "error": f"{name}_hiba"
+      }).drop(columns=["round", "otrid"])
       df = df.merge(part, how="left", left_on="_key", right_on="rowid", suffixes=("", "_journal")).drop(columns=["rowid_journal"])
     df.drop(columns=["_key"]).to_excel(out_path, index=False)
     return out_path

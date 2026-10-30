@@ -50,15 +50,16 @@ return Array.from(grid.querySelectorAll("div[role='row']")).map(row =>
   }));
 """
 
-# True when the page is loaded and AngularJS (if present) has no pending HTTP requests
+# True when the page is loaded and no AngularJS app (OTR bootstraps it on #otr_angular_inner) has pending HTTP requests
 PAGE_IDLE_JS = """
 if (document.readyState !== 'complete') return false;
-try {
-  if (window.angular) {
-    const injector = window.angular.element(document.body).injector();
-    if (injector) return injector.get('$http').pendingRequests.length === 0;
-  }
-} catch (e) {}
+if (!window.angular) return true;
+for (const root of document.querySelectorAll('[ng-app], [data-ng-app]')) {
+  try {
+    const injector = window.angular.element(root).injector();
+    if (injector && injector.get('$http').pendingRequests.length > 0) return false;
+  } catch (e) {}
+}
 return true;
 """
 
@@ -248,9 +249,11 @@ class WebDriver:
     """Reads the search result grid in one call: a list of rows, each a list of {id, title} cells."""
     try:
       self._wait(TimeoutConfig.DEFAULT).until(EC.visibility_of_element_located((By.XPATH, "//div[contains(@id, '-grid-container')]/div[2]/div")))
-      return self.driver.execute_script(READ_GRID_JS)
+      self.waitForPageIdle()
+      # The grid is rendered before the search response arrives, wait for its rows
+      return self._wait(TimeoutConfig.SHORT).until(lambda d: d.execute_script(READ_GRID_JS))
     except LOOKUP_ERRORS as e:
-      self._logger.error(e)
+      self._logger.error(f"Empty search result grid: {e}")
     return None
 
   def _wait(self, timeout, ignored=None) -> WebDriverWait:

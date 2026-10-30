@@ -15,6 +15,9 @@ class FakeBrowser:
   def disableAnimations(self):
     pass
 
+  def waitForPageIdle(self):
+    return True
+
   def clickElement(self, how, what):
     self.clicked.append(what)
     return True

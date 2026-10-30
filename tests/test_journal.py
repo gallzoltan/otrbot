@@ -32,6 +32,11 @@ def test_rounds_are_independent(journal):
   assert not journal.is_done(1, 2)
   assert journal.otrid(1) is None
 
+def test_otrid_captured_by_a_later_round(journal):
+  journal.mark(1, 1, OK)
+  journal.mark(1, 2, OK, otrid="14846/02/2026")
+  assert journal.otrid(1) == "14846/02/2026"
+
 def test_persists_between_runs(tmp_path):
   path = str(tmp_path / "data.journal.sqlite")
   first = Journal(path)
@@ -54,14 +59,14 @@ def test_export(tmp_path, journal):
   excel = tmp_path / "data.xlsx"
   with pd.ExcelWriter(excel) as writer:
     pd.DataFrame([["fejléc", ""], ["rowid", "city"], [1, "Békéscsaba"], [2, "Gyula"]]).to_excel(writer, sheet_name="betolt", index=False, header=False)
-  journal.mark(1, 1, OK, otrid="OTR-1")
+  journal.mark(1, 1, OK)
   journal.mark(2, 1, FAILED, error="nem található")
-  journal.mark(1, 2, OK)
+  journal.mark(1, 2, OK, otrid="OTR-1")
   out = journal.export(str(excel), sheet_name="betolt")
   df = pd.read_excel(out)
   assert list(df["city"]) == ["Békéscsaba", "Gyula"]
   assert list(df["benyujtas_status"]) == [OK, FAILED]
-  assert df["benyujtas_otrid"][0] == "OTR-1"
+  assert df["otr_azonosito"][0] == "OTR-1"
   assert df["benyujtas_hiba"][1] == "nem található"
   assert df["dontes_status"][0] == OK
   assert "szerzodes_status" not in df.columns

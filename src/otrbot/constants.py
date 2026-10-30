@@ -74,8 +74,6 @@ class SubmitForms(Enum):
   BUTTON_CLOSE = "//*[@id='tamogatasi_igeny_rogzitese:Lezaras']"
   BUTTON_KILEP = "//button[@id='tamogatasi_igeny_rogzitese:visszalepes']"
   BUTTON_VISSZALEP = "//*[@id='tamogatasi_igeny_rogzitese:Visszalepes']"
-  # TODO: EDU-ban felderítendő - a rögzítés után megjelenő OTR azonosító mezője (üres = nincs kiolvasás)
-  OTR_ID = ""
 
 class RunnerConfig:
   """Unattended run settings"""

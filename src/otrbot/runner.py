@@ -179,10 +179,10 @@ class ModuleRunner:
       self._logger.error("Login failed after browser restart")
 
   def _otrid(self, item: Item) -> str:
-    """The OTR id from the submission round's journal entry, otherwise from the Excel file."""
+    """The OTR id captured by an earlier round (journal), otherwise from the Excel file."""
     return (self._journal and self._journal.otrid(item.master.rowid)) or item.master.otrid
 
-  def _run_round1(self, item: Item) -> Optional[str]:
+  def _run_round1(self, item: Item) -> None:
     master, address, denomination, deadline, amount = item.master, item.address, item.denomination, item.deadline, item.amount
     self._navigateTab(main_tab=Navigate.MENU_UJ_TAMOGATAS.value)
     self._navigateTab(main_tab=Navigate.TAB_MAIN_CLAIMING.value)
@@ -198,11 +198,10 @@ class ModuleRunner:
       submission.fillClaimSupportCategoriesTab(master=master, address=address, amount=amount)
     self._fixingForm("RogzitesKesz")
     self._logger.debug(f"Rögzítés kész: {address.city}")
-    return self._readOtrId()
 
-  def _run_round2(self, item: Item) -> None:
+  def _run_round2(self, item: Item) -> Optional[str]:
     master, address, deadline, amount = item.master, item.address, item.deadline, item.amount
-    self._openExisting(item, status=1)
+    otrid = self._openExisting(item, status=1)
     self._navigateTab(main_tab=Navigate.TAB_MAIN_DECISION.value)
     with self._bot.services.DecisionService(self.browser) as decision:
       decision.fillDecisionBasicTab(deadline=deadline, amount=amount)
@@ -212,9 +211,10 @@ class ModuleRunner:
       decision.fillDecisionCategoryTab(master=master, address=address, amount=amount)
     self._fixingForm("DontesKesz")
     self._logger.debug(f"Rögzítés kész: {address.city}")
+    return otrid
 
-  def _run_round3(self, item: Item) -> None:
-    self._openExisting(item, status=2)
+  def _run_round3(self, item: Item) -> Optional[str]:
+    otrid = self._openExisting(item, status=2)
     self._navigateTab(main_tab=Navigate.TAB_MAIN_CONTRACT.value)
     self._navigateTab(main_tab=Navigate.TAB_MAIN_CONTRACT.value, sub_tab=Navigate.TAB_SUB_CONTRACT.value, index=0)
     with self._bot.services.ContractService(self.browser) as contract:
@@ -222,14 +222,17 @@ class ModuleRunner:
       self._navigateTab(main_tab=Navigate.TAB_MAIN_CONTRACT.value, sub_tab=Navigate.TAB_SUB_CONTRACT.value, index=2)
     self._fixingForm("SzerzodesKesz")
     self._logger.debug(f"Rögzítés kész: {item.address.city}")
+    return otrid
 
-  def _openExisting(self, item: Item, status: int):
+  def _openExisting(self, item: Item, status: int) -> Optional[str]:
+    """Finds and opens the item in the support list; returns its OTR id read from the result grid."""
     self._navigateTab(main_tab=Navigate.MENU_LIST_TAMOGATAS.value)
     with self._bot.services.SupportListService(self.browser) as search:
-      found = search.selectCouncilOnSearchForm(kid=item.master.kid, council=item.address.city, otrid=self._otrid(item), status=status)
-    if not found:
+      row = search.selectCouncilOnSearchForm(kid=item.master.kid, council=item.address.city, otrid=self._otrid(item), status=status, regid=item.master.regid)
+    if not row:
       raise StepFailed(f"{item.address.city} nevű önkormányzat nem található!")
     self.browser.waitForPageIdle()
+    return row.otrid or None
 
   def _navigateTab(self, main_tab, sub_tab=None, index=None):
     """
@@ -242,16 +245,8 @@ class ModuleRunner:
     self.browser.clickElement(By.XPATH, main_tab)
     if sub_tab:
       self.browser.clickElement(By.XPATH, sub_tab[index])
-
-  def _readOtrId(self) -> Optional[str]:
-    if not SubmitForms.OTR_ID.value:
-      return None
-    try:
-      el = self.browser.driver.find_element(By.XPATH, SubmitForms.OTR_ID.value)
-      return el.text.strip() or el.get_attribute("value")
-    except WebDriverException as e:
-      self._logger.error(f"Could not read the OTR id: {e}")
-      return None
+    # Tabs load their data asynchronously and would overwrite fields filled in too early
+    self.browser.waitForPageIdle()
 
   def _validForm(self):
     self.browser.clickElement(By.XPATH, SubmitForms.BUTTON_VALIDATION.value)

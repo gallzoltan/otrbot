@@ -3,7 +3,7 @@ import unidecode
 from enum import Enum
 from otrbot.models import SupportSearchTable
 from selenium.webdriver.common.by import By
-from typing import List
+from typing import List, Optional
 
 class FillSupportList(Enum):
   INPUT_KID = "//input[@id='konstrukcio_azonosito']"
@@ -40,27 +40,46 @@ class SupportListService:
   def __exit__(self, *args):
     self._logger.debug("The support list search is done")
   
-  def selectCouncilOnSearchForm(self, kid, council, otrid, status) -> bool:
-    self._browser.sendKeys(By.XPATH, FillSupportList.INPUT_TAZ.value, otrid)
+  def selectCouncilOnSearchForm(self, kid, council, otrid, status, regid="") -> Optional[SupportSearchTable]:
+    """
+    Searches by OTR id, or - when it is not known yet - by construction id and tax number,
+    then opens the matching row. Returns the opened row (its otrid is the OTR id) or None.
+    """
+    if otrid:
+      self._browser.sendKeys(By.XPATH, FillSupportList.INPUT_TAZ.value, otrid)
+    else:
+      self._browser.sendKeys(By.XPATH, FillSupportList.INPUT_KID.value, kid)
+      self._browser.sendKeys(By.XPATH, FillSupportList.INPUT_TAX.value, regid)
     self._browser.clickElement(By.XPATH, FillSupportList.BUTTON_SEARCH.value)   
     rows = self._browser.readGrid()
     if not rows:
-      self._logger.error(f"{council} : empty search result for {otrid}")
-      return False
+      self._logger.error(f"{council} : empty search result for otrid:{otrid} kid:{kid} regid:{regid}")
+      return None
     rowlist = [SupportSearchTable(collist=collist) for collist in rows]
-    clickId = self._getClickId(rows=rowlist, council=council, status=FillSupportList.STATUS.value[status])
+    row = self._findRow(rows=rowlist, council=council, status=FillSupportList.STATUS.value[status], regid=regid)
     self._logger.debug(f"{council} : {FillSupportList.STATUS.value[status]}")
-    if(clickId):
-      self._browser.clickElement(By.XPATH, FillSupportList.CLICK_ID.value.format(clickId=clickId))
-      self._logger.debug(f"{council} : {clickId}")
-      return True
-    return False
+    if(row):
+      self._browser.clickElement(By.XPATH, FillSupportList.CLICK_ID.value.format(clickId=row.id))
+      self._logger.debug(f"{council} : {row.id} otrid:{row.otrid}")
+      return row
+    return None
   
   def _getClickId(self, rows: List[SupportSearchTable], council: str, status: str):
+    row = self._findRow(rows=rows, council=council, status=status)
+    return row.id if row else None
+
+  def _findRow(self, rows: List[SupportSearchTable], council: str, status: str, regid: str = "") -> Optional[SupportSearchTable]:
+    council_accentless = unidecode.unidecode(council.lower()).split(' ')
+    tax_prefix = self._digits(regid)[:8]
     for row in rows:
-      council_accentless = unidecode.unidecode(council.lower()).split(' ')
       claimname_accentlesses = unidecode.unidecode(row.claim_name.lower()).split(' ')
       self._logger.debug(f"extracted name: {council_accentless} from {claimname_accentlesses}")
+      if tax_prefix and not self._digits(row.tax_number).startswith(tax_prefix):
+        continue
       if (council_accentless[0] in claimname_accentlesses and row.support_status.lower() == status.lower()):                
-        return row.id
+        return row
     return None
+
+  @staticmethod
+  def _digits(value) -> str:
+    return "".join(c for c in str(value or "") if c.isdigit())
