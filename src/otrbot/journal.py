@@ -1,8 +1,7 @@
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
-import pandas as pd
+from typing import Dict, List, Optional, Tuple
 
 OK = "ok"
 FAILED = "failed"
@@ -32,6 +31,14 @@ class Journal:
         updated_at TEXT NOT NULL,
         PRIMARY KEY (rowid, round)
       )""")
+    self._conn.execute("""
+      CREATE TABLE IF NOT EXISTS applicants (
+        rowid TEXT PRIMARY KEY,
+        city TEXT,
+        regid TEXT
+      )""")
+    self._conn.execute("DROP VIEW IF EXISTS eredmeny")
+    self._conn.execute(self._result_view_sql())
     self._conn.commit()
 
   @classmethod
@@ -53,8 +60,13 @@ class Journal:
     row = self._conn.execute("SELECT otrid FROM items WHERE rowid = ? AND otrid IS NOT NULL AND otrid != '' ORDER BY round LIMIT 1", (str(rowid),)).fetchone()
     return row[0] if row and row[0] else None
 
-  def start(self, rowid, round: int):
-    """Registers an attempt; the item stays pending until it is marked."""
+  def start(self, rowid, round: int, city: Optional[str] = None, regid: Optional[str] = None):
+    """Registers an attempt; the item stays pending until it is marked. City and tax number make the journal readable on its own."""
+    if city is not None or regid is not None:
+      self._conn.execute("""
+        INSERT INTO applicants (rowid, city, regid) VALUES (?, ?, ?)
+        ON CONFLICT (rowid) DO UPDATE SET city = COALESCE(excluded.city, city), regid = COALESCE(excluded.regid, regid)""",
+        (str(rowid), city, None if regid is None else str(regid)))
     self._conn.execute("""
       INSERT INTO items (rowid, round, status, attempts, updated_at) VALUES (?, ?, ?, 1, ?)
       ON CONFLICT (rowid, round) DO UPDATE SET status = ?, attempts = attempts + 1, updated_at = ?""",
@@ -73,23 +85,27 @@ class Journal:
     rows = self._conn.execute("SELECT status, COUNT(*) FROM items WHERE round = ? GROUP BY status", (round,)).fetchall()
     return dict(rows)
 
-  def export(self, excel_file_path: str, sheet_name: str, out_path: Optional[str] = None) -> str:
-    """Writes the input rows extended with the captured OTR id and the status and error of every round."""
-    out_path = out_path or str(Path(excel_file_path).with_name(f"{Path(excel_file_path).stem}_eredmeny.xlsx"))
-    df = pd.read_excel(excel_file_path, sheet_name=sheet_name, skiprows=1)
-    items = pd.read_sql_query("SELECT rowid, round, status, otrid, attempts, error FROM items", self._conn)
-    df["_key"] = df["rowid"].astype(str)
-    df["otr_azonosito"] = [self.otrid(key) or "" for key in df["_key"]]
+  def failed(self, round: int) -> List[Tuple[str, Optional[str], Optional[str]]]:
+    """(rowid, city, error) of the items that are not ok in the round."""
+    return self._conn.execute("""
+      SELECT items.rowid, applicants.city, items.error FROM items LEFT JOIN applicants USING (rowid)
+      WHERE items.round = ? AND items.status != ? ORDER BY CAST(items.rowid AS INTEGER)""", (round, OK)).fetchall()
+
+  @staticmethod
+  def _result_view_sql() -> str:
+    """One row per item: city, tax number, OTR id and the status, attempts and error of every round."""
+    columns = []
     for round, name in ROUND_NAMES.items():
-      part = items[items["round"] == round]
-      if part.empty:
-        continue
-      part = part.rename(columns={
-        "status": f"{name}_status", "attempts": f"{name}_probalkozas", "error": f"{name}_hiba"
-      }).drop(columns=["round", "otrid"])
-      df = df.merge(part, how="left", left_on="_key", right_on="rowid", suffixes=("", "_journal")).drop(columns=["rowid_journal"])
-    df.drop(columns=["_key"]).to_excel(out_path, index=False)
-    return out_path
+      for column, alias in (("status", "status"), ("attempts", "probalkozas"), ("error", "hiba")):
+        columns.append(f"MAX(CASE WHEN items.round = {round} THEN items.{column} END) AS {name}_{alias}")
+    return f"""
+      CREATE VIEW eredmeny AS
+      SELECT items.rowid AS rowid, applicants.city AS telepules, applicants.regid AS adoszam,
+        (SELECT o.otrid FROM items o WHERE o.rowid = items.rowid AND o.otrid IS NOT NULL AND o.otrid != '' ORDER BY o.round LIMIT 1) AS otr_azonosito,
+        {", ".join(columns)}
+      FROM items LEFT JOIN applicants USING (rowid)
+      GROUP BY items.rowid
+      ORDER BY CAST(items.rowid AS INTEGER)"""
 
   @staticmethod
   def _now() -> str:

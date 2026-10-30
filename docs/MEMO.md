@@ -14,7 +14,7 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 
 ### 1. Felügyelet nélküli futás
 - **Napló** (`src/otrbot/journal.py`): `<excel>.journal.sqlite` az Excel mellett; minden (rowid, menet) eredménye `ok` / `failed` / `pending`. Újraindításkor csak a nem `ok` tételek futnak le.
-- **Eredmény Excel**: `<excel>_eredmeny.xlsx` minden futás végén: `otr_azonosito` + menetenként státusz, próbálkozásszám, hiba.
+- **Eredmény**: csak a SQLite napló (az `_eredmeny.xlsx` export megszűnt, lásd lent).
 - **Retry és helyreállítás** (`runner.py`, `_run_item` / `_recover`): tételenként 2 próbálkozás; hiba után képernyőkép + HTML a `logs/fail/` mappába, oldal újratöltése, újrabelépés, szükség esetén a Firefox újraindítása. Ha 10 tétel egymás után hibás, a futás leáll.
 - **Strict mód**: a `WebDriver.strict = True` miatt az első sikertelen lépés `StepFailed` kivételt dob, és a tételt azonnal feladja.
 - **Duplikáció elleni védelem**: ha a végső „… kész” gombot már megerősítette, de nem jött siker-üzenet, a bot NEM próbálja újra (`FinalSubmitError` / `SubmittedUncertain`, „BIZONYTALAN” jelzés a naplóban).
@@ -32,6 +32,14 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 - A Benyújtás után az OTR azonosító **nem jelenik meg** a felületen, csak a „Támogatások listázása” keresőben.
 - A Döntés menet, ha az Excel `otrid` oszlopa üres, a **konstrukció azonosító (`kid`) + adószám (`regid`)** alapján keres. A találatot a település neve, a státusz és az adószám első 8 jegye alapján választja ki, majd a találati lista **első oszlopából** elmenti az OTR azonosítót a naplóba. A Szerződés már erre keres.
 - A találati lista oszlopai: 0 azonosító, 1 megnevezés, 2 státusz, 3 döntés dátuma, 4 igénylő neve, 5 igénylő adószáma, 6 konstrukció, 7 kizáró ok, 8 művelet (`models/search_table.py`).
+
+### 4. Csak SQLite napló (2026-10-30)
+- Az `_eredmeny.xlsx` export (`Journal.export`) megszűnt; egyetlen eredménytár a `<excel>.journal.sqlite`.
+- Új `applicants` tábla (rowid, település, adószám): a `start()` tölti, így a napló az Excel nélkül is olvasható.
+- `eredmeny` nézet: tételenként egy sor (`telepules`, `adoszam`, `otr_azonosito`, menetenként `_status`, `_probalkozas`, `_hiba`). Minden megnyitáskor újra létrejön, így a régi naplófájlokon is működik (ott a település/adószám üres, amíg a tétel újra el nem indul).
+- A log végén a menet nem `ok` tételei soronként (`not ok id:… city:…: hiba`).
+- Duplikáció elleni védelem: a Benyújtás kihagyja azokat a tételeket, amelyeknek már van OTR azonosítójuk (napló vagy Excel `otrid`). Ezek `ok` státuszt kapnak „Kihagyva, már van OTR azonosító” megjegyzéssel. Ok: a kézzel rögzített tételeket (pl. Abda, rowid 11) a felhasználó előre beírja az Excelbe.
+- Átnézés: DB Browser for SQLite, vagy `sqlite3 data/x.journal.sqlite "select * from eredmeny"`.
 
 ## Mérés – EDU, 10 tétel (`data/be-tuzelo-teszt_2026.xlsx`)
 
@@ -57,14 +65,14 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 
 ## Nyitott teendők
 1. Ellenőrizni az EDU-ban 1-2 tételnél, hogy a `setValue`-val beírt mezők (megnevezés, összefoglalás, cél) helyesen mentődtek-e.
-2. Első éles futás kis adaggal (pl. `-sp VTM -e 20`), és utána az `_eredmeny.xlsx` átnézése.
+2. Első éles futás kis adaggal (pl. `-sp VTM -e 20`), és utána a napló `eredmeny` nézetének és a log végének átnézése.
 3. Opcionális gyorsítások, EDU-ban kipróbálandók: `WebDriverConfig.PAGE_LOAD_STRATEGY = "eager"`, képek tiltása (`permissions.default.image`).
 4. A 4. menet (Lezárás) továbbra sincs megvalósítva.
 5. Az IMPROVEMENT_PLAN.md fennmaradó pontjai.
 
 ## Fontos fájlok
 - `src/otrbot/runner.py` – menetek, `_run_item`, `_recover`, `_fixingForm`, `_openExisting`
-- `src/otrbot/journal.py` – napló és export
+- `src/otrbot/journal.py` – napló, `eredmeny` nézet, `failed()`
 - `src/otrbot/services/webdriver_service.py` – várakozások, strict mód, `setValue`, `readGrid`, `waitForPageIdle`, `StepTimings`
 - `src/otrbot/services/support_list_service.py` – keresés OTR azonosító vagy kid + adószám alapján
 - `src/otrbot/constants.py` – `TimeoutConfig`, `WebDriverConfig`, `RunnerConfig`

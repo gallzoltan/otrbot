@@ -72,7 +72,7 @@ pytest tests/test_decision_service.py
 
 - **Journal**: every (rowid, round) outcome is stored in `<excel>.journal.sqlite` next to the Excel file (src/otrbot/journal.py). Statuses: `ok`, `failed`, `pending`.
 - **Resume**: rerunning the same command skips items that are already `ok` in that round; `failed`/`pending` items are processed again. Delete the journal file to start from scratch.
-- **Results**: after every run `<excel>_eredmeny.xlsx` is written: the input rows plus `otr_azonosito` and per-round `<round>_status`, `<round>_probalkozas`, `<round>_hiba` columns.
+- **Results**: the journal is the only result store (no Excel export). Its `eredmeny` view has one row per item: `telepules`, `adoszam` (stored in the `applicants` table when an item is started), `otr_azonosito` and per-round `<round>_status`, `<round>_probalkozas`, `<round>_hiba`. Open it with DB Browser for SQLite or `sqlite3 data.journal.sqlite "select * from eredmeny"`. The end of the log lists the items that are not `ok` in the round.
 - **Logs**: one file per run, `logs/otr_<timestamp>.log`; the end of the log lists the 10 slowest browser steps. Screenshot + HTML of every failed attempt: `logs/fail/<rowid>_r<round>_a<attempt>.png/.html`.
 - Exit code is non-zero if any item failed.
 
@@ -95,6 +95,7 @@ runner.load_datas(excel_file_path="data.xlsx", sheet_name='betolt', begin=1, end
 The system processes subsidies in sequential rounds (src/otrbot/runner.py):
 
 1. **Round 1 (Submission)**: Creates new subsidy applications
+   - Skips items that already have an OTR id (journal or Excel `otrid`): they are marked `ok` with a "Kihagyva" note, so a manually submitted application is not duplicated
    - Navigates to "New Support" menu
    - Fills claiming party basic info (Igénylő alapadatok)
    - Fills claim basic data, place of use, and support categories

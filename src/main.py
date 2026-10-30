@@ -83,7 +83,7 @@ def main() -> int:
         .run(round=round_num)
     finally:
       runner.close()
-      logging.logger.info(f"Result exported to {journal.export(args.file, sheet_name='betolt')}")
+      logging.logger.info(f"Result: {journal.path} (view: eredmeny)")
       journal.close()
 
     return 0 if success else 1

@@ -26,10 +26,11 @@ class FakeBrowser:
     return self.notice
 
 
-def make_stack(rowids):
+def make_stack(rowids, otrids=None):
   n = len(rowids)
+  otrids = otrids or {}
   return Stack(
-    masters=[Master(rowid=r, kid="K", regid="R", otrid=f"X{r}", aht="A", category="4.") for r in rowids],
+    masters=[Master(rowid=r, kid="K", regid="R", otrid=otrids.get(r, ""), aht="A", category="4.") for r in rowids],
     addresses=[Address(postal_code="1", city=f"City{r}", street="s", house_number="1", region="r") for r in rowids],
     denominations=[Denomination(claim_name="n", claim_source_name="s", claim_summary="s", claim_goal="g")] * n,
     deadlines=[Deadline(claim_submission_date="", decision_date="", decision_support_begin="", decision_support_finish="", contract_entry_date="")] * n,
@@ -44,9 +45,9 @@ def journal(tmp_path):
   j.close()
 
 
-def make_runner(journal, rowids, step, begin=None, end=None, **kwargs):
+def make_runner(journal, rowids, step, begin=None, end=None, otrids=None, **kwargs):
   runner = ModuleRunner(supporter="BM", journal=journal, **kwargs)
-  runner.datas = make_stack(rowids)
+  runner.datas = make_stack(rowids, otrids)
   runner._begin, runner._end = begin, end
   runner.browser = FakeBrowser()
   runner.recovered = []
@@ -65,6 +66,7 @@ def test_failed_item_does_not_stop_the_run(journal):
   assert journal.status(1, 1) == OK and journal.status(3, 1) == OK
   assert journal.status(2, 1) == FAILED
   assert journal.otrid(3) == "OTR-3"
+  assert journal.failed(1) == [("2", "City2", "element not found")]
   assert runner.recovered == [(2, 1), (2, 2)]
 
 def test_retry_succeeds(journal):
@@ -134,8 +136,25 @@ def test_fixing_form(journal, notice, expected):
       runner._fixingForm("RogzitesKesz")
 
 def test_otrid_prefers_journal(journal):
-  runner = make_runner(journal, [1, 2], lambda item: None)
+  runner = make_runner(journal, [1, 2], lambda item: None, otrids={1: "X1", 2: "X2"})
   journal.mark(1, 1, OK, otrid="OTR-1")
   items = list(runner._items())
   assert runner._otrid(items[0]) == "OTR-1"
   assert runner._otrid(items[1]) == "X2"
+
+def test_submission_skips_items_with_otrid(journal):
+  journal.mark(3, 2, OK, otrid="OTR-3")
+  processed = []
+  runner = make_runner(journal, [1, 2, 3], lambda item: processed.append(item.master.rowid), otrids={2: " X2 "})
+  assert runner.run(1) is True
+  assert processed == [1]
+  assert journal.is_done(2, 1) and journal.otrid(2) == "X2"
+  assert journal.is_done(3, 1)
+  assert "Kihagyva" in journal._conn.execute("SELECT error FROM items WHERE rowid = '2' AND round = 1").fetchone()[0]
+
+def test_otrid_does_not_skip_later_rounds(journal):
+  processed = []
+  runner = make_runner(journal, [1], lambda item: processed.append(item.master.rowid), otrids={1: "X1"})
+  runner._rounds[2] = runner._rounds[1]
+  assert runner.run(2) is True
+  assert processed == [1]

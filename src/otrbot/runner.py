@@ -77,6 +77,8 @@ class ModuleRunner:
 
     items = list(self._items())
     todo = [item for item in items if not self._is_done(item, round)]
+    if round == 1:
+      todo = [item for item in todo if not self._skip_submitted(item)]
     self._logger.info(f"Round {round}: {len(items)} items, {len(items) - len(todo)} already done, {len(todo)} to process")
 
     succeeded, failed, durations = 0, 0, []
@@ -115,6 +117,16 @@ class ModuleRunner:
   def _is_done(self, item: Item, round: int) -> bool:
     return self._journal is not None and self._journal.is_done(item.master.rowid, round)
 
+  def _skip_submitted(self, item: Item) -> bool:
+    """An item that already has an OTR id (journal or Excel) was submitted before; submitting it again would create a duplicate."""
+    otrid = str(self._otrid(item) or "").strip()
+    if not otrid:
+      return False
+    self._logger.warning(f"Skipped, already submitted id:{item.master.rowid} city:{item.address.city} otrid:{otrid}")
+    if self._journal:
+      self._journal.mark(item.master.rowid, 1, OK, otrid=otrid, error=f"Kihagyva, már van OTR azonosító: {otrid}")
+    return True
+
   def _run_item(self, round: int, item: Item) -> bool:
     """Runs one item with retries and recovery; returns True on success. Never raises for item level errors."""
     rowid = item.master.rowid
@@ -122,7 +134,7 @@ class ModuleRunner:
     start = time.perf_counter()
     for attempt in range(1, self._max_attempts + 1):
       if self._journal:
-        self._journal.start(rowid, round)
+        self._journal.start(rowid, round, city=item.address.city, regid=item.master.regid)
       try:
         self.browser.disableAnimations()
         if self._needs_menu:
@@ -281,5 +293,7 @@ class ModuleRunner:
     self._logger.info(f"Round {round} finished: {succeeded} ok, {failed} failed, {total - succeeded - failed} not started, {average:.1f}s/item")
     if self._journal:
       self._logger.info(f"Journal totals for round {round}: {self._journal.counts(round)}")
+      for rowid, city, error in self._journal.failed(round):
+        self._logger.info(f"not ok id:{rowid} city:{city}: {error}")
     for method, what, count, total_time in self.browser.timings.slowest(10):
       self._logger.info(f"slow step {total_time:7.1f}s {count:5}x {method} {what}")

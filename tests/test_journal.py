@@ -1,4 +1,4 @@
-import pandas as pd
+import sqlite3
 import pytest
 from otrbot.journal import Journal, OK, FAILED, PENDING
 
@@ -55,18 +55,49 @@ def test_counts(journal):
 def test_for_excel_path():
   assert Journal.for_excel("data/04_ukran.xlsx").path.replace("\\", "/") == "data/04_ukran.journal.sqlite"
 
-def test_export(tmp_path, journal):
-  excel = tmp_path / "data.xlsx"
-  with pd.ExcelWriter(excel) as writer:
-    pd.DataFrame([["fejléc", ""], ["rowid", "city"], [1, "Békéscsaba"], [2, "Gyula"]]).to_excel(writer, sheet_name="betolt", index=False, header=False)
-  journal.mark(1, 1, OK)
+def view(journal):
+  cursor = journal._conn.execute("SELECT * FROM eredmeny")
+  names = [column[0] for column in cursor.description]
+  return [dict(zip(names, row)) for row in cursor.fetchall()]
+
+def test_eredmeny_view(journal):
+  journal.start(2, 1, city="Gyula", regid="15725030-2-04")
   journal.mark(2, 1, FAILED, error="nem található")
+  journal.start(1, 1, city="Békéscsaba", regid="15725009-2-04")
+  journal.mark(1, 1, OK)
+  journal.start(1, 2)
   journal.mark(1, 2, OK, otrid="OTR-1")
-  out = journal.export(str(excel), sheet_name="betolt")
-  df = pd.read_excel(out)
-  assert list(df["city"]) == ["Békéscsaba", "Gyula"]
-  assert list(df["benyujtas_status"]) == [OK, FAILED]
-  assert df["otr_azonosito"][0] == "OTR-1"
-  assert df["benyujtas_hiba"][1] == "nem található"
-  assert df["dontes_status"][0] == OK
-  assert "szerzodes_status" not in df.columns
+  first, second = view(journal)
+  assert (first["rowid"], first["telepules"], first["adoszam"], first["otr_azonosito"]) == ("1", "Békéscsaba", "15725009-2-04", "OTR-1")
+  assert (first["benyujtas_status"], first["dontes_status"], first["dontes_probalkozas"]) == (OK, OK, 1)
+  assert first["szerzodes_status"] is None
+  assert (second["telepules"], second["benyujtas_status"], second["benyujtas_hiba"], second["otr_azonosito"]) == ("Gyula", FAILED, "nem található", None)
+
+def test_rowids_are_ordered_numerically(journal):
+  for rowid in (10, 9, 2):
+    journal.mark(rowid, 1, OK)
+  assert [row["rowid"] for row in view(journal)] == ["2", "9", "10"]
+
+def test_failed_lists_not_ok_items(journal):
+  journal.start(1, 1, city="Békéscsaba")
+  journal.mark(1, 1, OK)
+  journal.start(2, 1, city="Gyula")
+  journal.mark(2, 1, FAILED, error="boom")
+  journal.start(3, 1)
+  assert journal.failed(1) == [("2", "Gyula", "boom"), ("3", None, None)]
+  assert journal.failed(2) == []
+
+def test_old_journal_gets_applicants_table(tmp_path):
+  path = str(tmp_path / "old.journal.sqlite")
+  conn = sqlite3.connect(path)
+  conn.execute("""CREATE TABLE items (rowid TEXT NOT NULL, round INTEGER NOT NULL, status TEXT NOT NULL, otrid TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0, duration REAL, error TEXT, updated_at TEXT NOT NULL, PRIMARY KEY (rowid, round))""")
+  conn.execute("INSERT INTO items VALUES ('5', 1, 'ok', NULL, 1, 1.0, NULL, '2026-10-30T10:00:00')")
+  conn.commit()
+  conn.close()
+  journal = Journal(path)
+  assert view(journal)[0]["benyujtas_status"] == OK
+  assert view(journal)[0]["telepules"] is None
+  journal.start(5, 2, city="Gyula")
+  assert view(journal)[0]["telepules"] == "Gyula"
+  journal.close()
