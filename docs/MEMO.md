@@ -38,7 +38,7 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 - Új `applicants` tábla (rowid, település, adószám): a `start()` tölti, így a napló az Excel nélkül is olvasható.
 - `eredmeny` nézet: tételenként egy sor (`telepules`, `adoszam`, `otr_azonosito`, menetenként `_status`, `_probalkozas`, `_hiba`). Minden megnyitáskor újra létrejön, így a régi naplófájlokon is működik (ott a település/adószám üres, amíg a tétel újra el nem indul).
 - A log végén a menet nem `ok` tételei soronként (`not ok id:… city:…: hiba`).
-- Duplikáció elleni védelem: a Benyújtás kihagyja azokat a tételeket, amelyeknek már van OTR azonosítójuk (napló vagy Excel `otrid`). Ezek `ok` státuszt kapnak „Kihagyva, már van OTR azonosító” megjegyzéssel. Ok: a kézzel rögzített tételeket (pl. Abda, rowid 11) a felhasználó előre beírja az Excelbe.
+- Duplikáció elleni védelem: a Benyújtás kihagyja azokat a tételeket, amelyeknek már van OTR azonosítójuk (napló vagy Excel `otrid`). Ezek `ok` státuszt kapnak „Kihagyva, már van OTR azonosító” megjegyzéssel. Ok: a kézzel rögzített tételeket (pl. Abda, rowid 11) a felhasználó előre beírja az Excelbe. EDU-ban kipróbálva (rowid 11), működik. A rowid 11–20 mindhárom menete hibátlan volt: 7,8 / 7,5 / 4,6 mp/tétel.
 - Átnézés: DB Browser for SQLite, vagy `sqlite3 data/x.journal.sqlite "select * from eredmeny"`.
 
 ## Mérés – EDU, 10 tétel (`data/be-tuzelo-teszt_2026.xlsx`)
