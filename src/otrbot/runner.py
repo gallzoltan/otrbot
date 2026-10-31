@@ -47,8 +47,10 @@ class ModuleRunner:
     }
 
   def load_datas(self, excel_file_path, sheet_name, begin: Optional[int] = None, end: Optional[int] = None):
-    """Loads the Excel rows; begin/end filter on the rowid column (end=0 means no upper limit)."""
+    """Loads the Excel rows and registers them in the journal (applicants); begin/end filter on the rowid column (end=0 means no upper limit)."""
     self.datas = self._bot.services.read_excel_file(excel_file_path, sheet_name)
+    if self._journal:
+      self._journal.load_applicants((m.rowid, a.city, m.regid) for m, a in zip(self.datas.masters, self.datas.addresses))
     self._begin = begin
     self._end = end
     self._logger.info("The datas has been loaded from excel file")
@@ -103,11 +105,7 @@ class ModuleRunner:
   def _items(self) -> Iterator[Item]:
     for row in zip(self.datas.masters, self.datas.addresses, self.datas.denominations, self.datas.deadlines, self.datas.amounts):
       item = Item(*row)
-      try:
-        rowid = int(float(item.master.rowid))
-      except ValueError:
-        self._logger.error(f"Invalid rowid, skipped: {item.master.rowid!r} city:{item.address.city}")
-        continue
+      rowid = item.master.rowid
       if self._begin and rowid < self._begin:
         continue
       if self._end and rowid > self._end:
@@ -134,7 +132,7 @@ class ModuleRunner:
     start = time.perf_counter()
     for attempt in range(1, self._max_attempts + 1):
       if self._journal:
-        self._journal.start(rowid, round, city=item.address.city, regid=item.master.regid)
+        self._journal.start(rowid, round)
       try:
         self.browser.disableAnimations()
         if self._needs_menu:

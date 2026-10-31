@@ -2,7 +2,7 @@
 
 Ez a fájl a fejlesztés állását rögzíti, hogy másik gépen (pl. otthon) is folytatható legyen. Claude: a munka elején olvasd el, a végén frissítsd.
 
-Utolsó frissítés: 2026-10-30
+Utolsó frissítés: 2026-10-31
 
 ## Mi volt a probléma
 
@@ -40,6 +40,13 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 - A log végén a menet nem `ok` tételei soronként (`not ok id:… city:…: hiba`).
 - Duplikáció elleni védelem: a Benyújtás kihagyja azokat a tételeket, amelyeknek már van OTR azonosítójuk (napló vagy Excel `otrid`). Ezek `ok` státuszt kapnak „Kihagyva, már van OTR azonosító” megjegyzéssel. Ok: a kézzel rögzített tételeket (pl. Abda, rowid 11) a felhasználó előre beírja az Excelbe. EDU-ban kipróbálva (rowid 11), működik. A rowid 11–20 mindhárom menete hibátlan volt: 7,8 / 7,5 / 4,6 mp/tétel. Benyújtás rowid 21–100 `--headless`: 80/80 ok, 7,4 mp/tétel, 10 perc, ebből ~1,5 mp/tétel a szerver válasza a „kész” gomb után (`catchError`). Döntés rowid 21–100 `--headless`: 80/80 ok, 8,4 mp/tétel, 11 perc; 80 különböző OTR azonosító a naplóban; a „Döntés kész” utáni szerverválasz ~3,2 mp/tétel. Szerződés rowid 21–100 `--headless`: 80/80 ok, 4,3 mp/tétel, 6 perc. A teszt Excel mind a 100 tétele mindhárom menetben `ok`, egyetlen újrapróbálkozás nélkül; egy tétel a három menetben összesen ≈ 20 mp.
 - Átnézés: DB Browser for SQLite, vagy `sqlite3 data/x.journal.sqlite "select * from eredmeny"`.
+
+### 5. Applicants előtöltés, egész rowid (2026-10-31)
+- Az `applicants` tábla a betöltéskor (`load_datas` → `Journal.load_applicants`) egyszerre töltődik az Excel **összes** sorából (a `-b/-e` szűréstől függetlenül); az Excel felülírja a régi értéket. A `start()` már nem ír bele.
+- Az `eredmeny` nézet minden Excel-sort mutat, a még el nem indított tételeknél üres státusszal (a napló olyan tételei is látszanak, amelyek nincsenek az Excelben).
+- A `rowid` mindenhol INTEGER (`items`, `applicants`, `Master.rowid`); a régi, TEXT rowid-os naplókat megnyitáskor átépíti (`Journal._migrate`). A `be-tuzelo-teszt_2026.journal.sqlite` másolatán kipróbálva: a 100 `ok` tétel és az OTR azonosítók megmaradtak, a nézetben 2628 sor.
+- Az Excelben az érvénytelen/üres rowid-ú sorokat a beolvasás kihagyja (figyelmeztetés a logban).
+- Felmerült: a betöltő Excel helyett SQLite bemenet (az adatok egy PostgreSQL lekérdezésből jönnek). Egyelőre nem csináltuk meg.
 
 ## Mérés – EDU, 10 tétel (`data/be-tuzelo-teszt_2026.xlsx`)
 

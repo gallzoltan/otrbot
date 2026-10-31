@@ -48,6 +48,7 @@ def journal(tmp_path):
 def make_runner(journal, rowids, step, begin=None, end=None, otrids=None, **kwargs):
   runner = ModuleRunner(supporter="BM", journal=journal, **kwargs)
   runner.datas = make_stack(rowids, otrids)
+  journal.load_applicants((m.rowid, a.city, m.regid) for m, a in zip(runner.datas.masters, runner.datas.addresses))
   runner._begin, runner._end = begin, end
   runner.browser = FakeBrowser()
   runner.recovered = []
@@ -66,7 +67,7 @@ def test_failed_item_does_not_stop_the_run(journal):
   assert journal.status(1, 1) == OK and journal.status(3, 1) == OK
   assert journal.status(2, 1) == FAILED
   assert journal.otrid(3) == "OTR-3"
-  assert journal.failed(1) == [("2", "City2", "element not found")]
+  assert journal.failed(1) == [(2, "City2", "element not found")]
   assert runner.recovered == [(2, 1), (2, 2)]
 
 def test_retry_succeeds(journal):
@@ -150,7 +151,7 @@ def test_submission_skips_items_with_otrid(journal):
   assert processed == [1]
   assert journal.is_done(2, 1) and journal.otrid(2) == "X2"
   assert journal.is_done(3, 1)
-  assert "Kihagyva" in journal._conn.execute("SELECT error FROM items WHERE rowid = '2' AND round = 1").fetchone()[0]
+  assert "Kihagyva" in journal._conn.execute("SELECT error FROM items WHERE rowid = 2 AND round = 1").fetchone()[0]
 
 def test_otrid_does_not_skip_later_rounds(journal):
   processed = []
@@ -158,3 +159,11 @@ def test_otrid_does_not_skip_later_rounds(journal):
   runner._rounds[2] = runner._rounds[1]
   assert runner.run(2) is True
   assert processed == [1]
+
+
+def test_load_datas_registers_all_rows_in_journal(journal, monkeypatch):
+  runner = ModuleRunner(supporter="BM", journal=journal)
+  monkeypatch.setattr(runner._bot.services, "read_excel_file", lambda path, sheet: make_stack([1, 2, 3]))
+  runner.load_datas(excel_file_path="data.xlsx", sheet_name="betolt", begin=2, end=2)
+  assert journal._conn.execute("SELECT rowid, city FROM applicants ORDER BY rowid").fetchall() == [(1, "City1"), (2, "City2"), (3, "City3")]
+  assert [item.master.rowid for item in runner._items()] == [2]

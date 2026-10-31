@@ -24,7 +24,7 @@ def test_attempts_are_counted_and_otrid_is_kept(journal):
   journal.mark(1, 1, OK, otrid="OTR-123")
   journal.start(1, 1)
   journal.mark(1, 1, FAILED, error="boom")
-  row = journal._conn.execute("SELECT attempts, otrid, error FROM items WHERE rowid = '1' AND round = 1").fetchone()
+  row = journal._conn.execute("SELECT attempts, otrid, error FROM items WHERE rowid = 1 AND round = 1").fetchone()
   assert row == (2, "OTR-123", "boom")
 
 def test_rounds_are_independent(journal):
@@ -52,8 +52,10 @@ def test_counts(journal):
   journal.mark(3, 1, FAILED)
   assert journal.counts(1) == {OK: 2, FAILED: 1}
 
-def test_for_excel_path():
-  assert Journal.for_excel("data/04_ukran.xlsx").path.replace("\\", "/") == "data/04_ukran.journal.sqlite"
+def test_for_excel_path(tmp_path):
+  journal = Journal.for_excel(str(tmp_path / "04_ukran.xlsx"))
+  assert journal.path == str(tmp_path / "04_ukran.journal.sqlite")
+  journal.close()
 
 def view(journal):
   cursor = journal._conn.execute("SELECT * FROM eredmeny")
@@ -61,33 +63,63 @@ def view(journal):
   return [dict(zip(names, row)) for row in cursor.fetchall()]
 
 def test_eredmeny_view(journal):
-  journal.start(2, 1, city="Gyula", regid="15725030-2-04")
+  journal.load_applicants([(1, "Békéscsaba", "15725009-2-04"), (2, "Gyula", "15725030-2-04"), (3, "Orosháza", "15725043-2-04")])
+  journal.start(2, 1)
   journal.mark(2, 1, FAILED, error="nem található")
-  journal.start(1, 1, city="Békéscsaba", regid="15725009-2-04")
+  journal.start(1, 1)
   journal.mark(1, 1, OK)
   journal.start(1, 2)
   journal.mark(1, 2, OK, otrid="OTR-1")
-  first, second = view(journal)
-  assert (first["rowid"], first["telepules"], first["adoszam"], first["otr_azonosito"]) == ("1", "Békéscsaba", "15725009-2-04", "OTR-1")
+  first, second, third = view(journal)
+  assert (first["rowid"], first["telepules"], first["adoszam"], first["otr_azonosito"]) == (1, "Békéscsaba", "15725009-2-04", "OTR-1")
   assert (first["benyujtas_status"], first["dontes_status"], first["dontes_probalkozas"]) == (OK, OK, 1)
   assert first["szerzodes_status"] is None
   assert (second["telepules"], second["benyujtas_status"], second["benyujtas_hiba"], second["otr_azonosito"]) == ("Gyula", FAILED, "nem található", None)
+  assert (third["rowid"], third["telepules"], third["benyujtas_status"]) == (3, "Orosháza", None)
+
+def test_view_shows_items_without_applicant(journal):
+  journal.mark(4, 1, OK)
+  assert [(row["rowid"], row["telepules"]) for row in view(journal)] == [(4, None)]
+
+def test_load_applicants_overwrites_from_input(journal):
+  journal.load_applicants([(1, "Gyula", "1")])
+  journal.load_applicants([(1, "Békéscsaba", "2")])
+  assert journal._conn.execute("SELECT rowid, city, regid FROM applicants").fetchall() == [(1, "Békéscsaba", "2")]
 
 def test_rowids_are_ordered_numerically(journal):
   for rowid in (10, 9, 2):
     journal.mark(rowid, 1, OK)
-  assert [row["rowid"] for row in view(journal)] == ["2", "9", "10"]
+  assert [row["rowid"] for row in view(journal)] == [2, 9, 10]
 
 def test_failed_lists_not_ok_items(journal):
-  journal.start(1, 1, city="Békéscsaba")
+  journal.load_applicants([(1, "Békéscsaba", None), (2, "Gyula", None)])
+  journal.start(1, 1)
   journal.mark(1, 1, OK)
-  journal.start(2, 1, city="Gyula")
+  journal.start(2, 1)
   journal.mark(2, 1, FAILED, error="boom")
   journal.start(3, 1)
-  assert journal.failed(1) == [("2", "Gyula", "boom"), ("3", None, None)]
+  assert journal.failed(1) == [(2, "Gyula", "boom"), (3, None, None)]
   assert journal.failed(2) == []
 
-def test_old_journal_gets_applicants_table(tmp_path):
+def test_old_journal_is_migrated(tmp_path):
+  path = str(tmp_path / "old.journal.sqlite")
+  conn = sqlite3.connect(path)
+  conn.execute("""CREATE TABLE items (rowid TEXT NOT NULL, round INTEGER NOT NULL, status TEXT NOT NULL, otrid TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0, duration REAL, error TEXT, updated_at TEXT NOT NULL, PRIMARY KEY (rowid, round))""")
+  conn.execute("INSERT INTO items VALUES ('5', 1, 'ok', 'OTR-5', 1, 1.0, NULL, '2026-10-30T10:00:00')")
+  conn.execute("INSERT INTO items VALUES ('10', 1, 'failed', NULL, 2, 1.0, 'boom', '2026-10-30T10:00:00')")
+  conn.execute("CREATE TABLE applicants (rowid TEXT PRIMARY KEY, city TEXT, regid TEXT)")
+  conn.execute("INSERT INTO applicants VALUES ('5', 'Gyula', '15725030')")
+  conn.commit()
+  conn.close()
+  journal = Journal(path)
+  assert journal.is_done(5, 1) and journal.otrid(5) == "OTR-5"
+  assert journal._conn.execute("SELECT typeof(rowid) FROM items GROUP BY 1").fetchall() == [("integer",)]
+  assert [(row["rowid"], row["telepules"], row["benyujtas_status"]) for row in view(journal)] == [(5, "Gyula", OK), (10, None, FAILED)]
+  journal.close()
+  assert Journal(path).is_done(5, 1)
+
+def test_journal_without_applicants_table_gets_one(tmp_path):
   path = str(tmp_path / "old.journal.sqlite")
   conn = sqlite3.connect(path)
   conn.execute("""CREATE TABLE items (rowid TEXT NOT NULL, round INTEGER NOT NULL, status TEXT NOT NULL, otrid TEXT,
@@ -96,8 +128,7 @@ def test_old_journal_gets_applicants_table(tmp_path):
   conn.commit()
   conn.close()
   journal = Journal(path)
-  assert view(journal)[0]["benyujtas_status"] == OK
   assert view(journal)[0]["telepules"] is None
-  journal.start(5, 2, city="Gyula")
+  journal.load_applicants([(5, "Gyula", None)])
   assert view(journal)[0]["telepules"] == "Gyula"
   journal.close()

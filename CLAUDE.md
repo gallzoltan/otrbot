@@ -70,9 +70,9 @@ pytest tests/test_decision_service.py
 
 ### Unattended Run: Journal, Resume, Results
 
-- **Journal**: every (rowid, round) outcome is stored in `<excel>.journal.sqlite` next to the Excel file (src/otrbot/journal.py). Statuses: `ok`, `failed`, `pending`.
+- **Journal**: every (rowid, round) outcome is stored in `<excel>.journal.sqlite` next to the Excel file (src/otrbot/journal.py). Statuses: `ok`, `failed`, `pending`. `rowid` is INTEGER; older journals with TEXT rowid are migrated when opened.
 - **Resume**: rerunning the same command skips items that are already `ok` in that round; `failed`/`pending` items are processed again. Delete the journal file to start from scratch.
-- **Results**: the journal is the only result store (no Excel export). Its `eredmeny` view has one row per item: `telepules`, `adoszam` (stored in the `applicants` table when an item is started), `otr_azonosito` and per-round `<round>_status`, `<round>_probalkozas`, `<round>_hiba`. Open it with DB Browser for SQLite or `sqlite3 data.journal.sqlite "select * from eredmeny"`. The end of the log lists the items that are not `ok` in the round.
+- **Results**: the journal is the only result store (no Excel export). Its `eredmeny` view has one row per Excel row (not-yet-started items too, with empty status): `telepules`, `adoszam` (the `applicants` table, filled from every Excel row when the data is loaded; the Excel overwrites older values), `otr_azonosito` and per-round `<round>_status`, `<round>_probalkozas`, `<round>_hiba`. Open it with DB Browser for SQLite or `sqlite3 data.journal.sqlite "select * from eredmeny"`. The end of the log lists the items that are not `ok` in the round.
 - **Logs**: one file per run, `logs/otr_<timestamp>.log`; the end of the log lists the 10 slowest browser steps. Screenshot + HTML of every failed attempt: `logs/fail/<rowid>_r<round>_a<attempt>.png/.html`.
 - Exit code is non-zero if any item failed.
 

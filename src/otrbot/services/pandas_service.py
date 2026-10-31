@@ -27,8 +27,14 @@ def read_excel_file(excel_file, sheet_name) -> Stack:
   denominations = []
   deadlines = []
   amounts = []
-  df = pd.read_excel(excel_file, sheet_name=sheet_name, skiprows=1) 
-  df = df.fillna('') 
+  df = pd.read_excel(excel_file, sheet_name=sheet_name, skiprows=1)
+  df['rowid'] = pd.to_numeric(df['rowid'], errors='coerce')
+  invalid = df['rowid'].isna() | (df['rowid'] % 1 != 0)
+  if invalid.any():
+    logger.warning(f"Rows without a valid integer rowid are skipped (Excel rows: {', '.join(str(i + 3) for i in df.index[invalid])})")
+    df = df[~invalid]
+  df['rowid'] = df['rowid'].astype(int)
+  df = df.fillna('')
   df = df.astype({
     'kid':'string', 
     'regid':'string',
@@ -51,7 +57,7 @@ def read_excel_file(excel_file, sheet_name) -> Stack:
     'decision_sum_content':'string'               
   })
   for row in df.itertuples(index=False):
-    master = Master(rowid=row.rowid, kid=row.kid, regid=row.regid, otrid=row.otrid, aht=row.aht, form=row.form, category=row.category)
+    master = Master(rowid=int(row.rowid), kid=row.kid, regid=row.regid, otrid=row.otrid, aht=row.aht, form=row.form, category=row.category)
     address = Address(postal_code=row.postal_code, city=row.city, street=row.street, house_number=row.house_number, region=row.region)
     denomination = Denomination(claim_name=row.claim_name, claim_source_name=row.claim_source_name, claim_summary=row.claim_summary, claim_goal=row.claim_goal)
     deadline = Deadline(claim_submission_date=row.claim_submission_date, decision_date=row.decision_date, decision_support_begin=row.decision_support_begin, decision_support_finish=row.decision_support_finish, contract_entry_date=row.contract_entry_date)
