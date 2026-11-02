@@ -19,10 +19,8 @@ class WebDriverConfig:
     "--disable-popup-blocking"
   )
   
-  HEADLESS_OPTIONS: Tuple[str, ...] = DEFAULT_OPTIONS + (
-    "-headless",
-    "--window-size=1920,1080"
-  )
+  # Browser window size, set after start (headless Firefox defaults to 1366x768)
+  WINDOW_SIZE: Tuple[int, int] = (1920, 1080)
 
   # Firefox preferences that make the UI faster to drive
   PREFERENCES: Dict[str, object] = {

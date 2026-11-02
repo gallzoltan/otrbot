@@ -110,6 +110,9 @@ class WebDriver:
     self.options.page_load_strategy = WebDriverConfig.PAGE_LOAD_STRATEGY
     # Linux: geckodriver from snap may need FirefoxService('/snap/bin/geckodriver')
     self.driver = webdriver.Firefox(options=self.options)
+    # Headless Firefox starts at 1366x768; a bigger viewport keeps buttons on screen
+    width, height = WebDriverConfig.WINDOW_SIZE
+    self.driver.set_window_size(width, height)
     # When strict, a failed step raises StepFailed instead of returning False
     self.strict = False
     self.timings = StepTimings()
