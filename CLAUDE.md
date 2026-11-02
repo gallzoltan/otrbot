@@ -47,6 +47,12 @@ python src/main.py -s "Benyújtás" -f "data.xlsx" -sp "VTM" -b 1 -e 20 --headle
 run.cmd -s "Benyújtás" -f "data.xlsx" -sp "BM"
 ```
 
+Linux server without a GUI (AlmaLinux): native install with `scripts/install_almalinux.sh`, or in a container:
+```bash
+scripts/otrbot-podman.sh build
+scripts/otrbot-podman.sh run -s "Benyújtás" -f data/data.xlsx -sp KTM -b 1 -e 5   # adds --headless; data/, logs/, src/.env are mounted
+```
+
 From Git Bash (e.g. the `!` prefix in Claude Code) use forward slashes in paths: `src/main.py`, not `.\src\main.py`.
 
 ### Testing

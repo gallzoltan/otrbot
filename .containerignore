@@ -1,0 +1,17 @@
+.git
+.venv
+**/__pycache__
+*.py[oc]
+.env
+src/.env
+data
+logs
+dist
+build
+otrbot-portable
+tests
+docs
+*.xlsx
+*.xls
+*.sqlite
+*.log

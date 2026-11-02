@@ -52,6 +52,8 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 - A headless Firefox alapból 1366×768-as ablakkal indult; a `HEADLESS_OPTIONS` Chrome-os `--window-size` kapcsolója hatástalan és nem is volt használva, ezért törölve. Helyette `WebDriverConfig.WINDOW_SIZE = (1920, 1080)`, amit a `WebDriver.__init__` a `set_window_size` hívással állít be (headless és normál módban is). Helyben kipróbálva: 1920×1080, a viewport 1920×994.
 - A cél egy **AlmaLinux szerver grafikus felület nélkül**: `dnf install firefox dejavu-*-fonts`, geckodriver tarballból a `/usr/local/bin`-be, Python 3.12.10+ az `uv`-vel (`uv sync`), `.env`-ben `SYSTEM=linux`, futtatás `--headless`-szel `tmux`/`nohup` alatt.
 - **Telepítő**: `scripts/install_almalinux.sh` (dnf csomagok, geckodriver a legújabb verzióval vagy `GECKODRIVER_VERSION`, uv + `uv sync --no-dev`, `src/.env` a mintából `SYSTEM=linux`, `ENV=dev`, chmod 600, a végén headless Firefox próba). Többször is futtatható. AlmaLinux 9.8 konténerben (podman, rootként) végigfutott, a próba 1920×1080-as ablakot adott. Buktató: az AlmaLinux 9 `curl-minimal`-t tartalmaz, ez ütközik a `curl` csomaggal, ezért a curl csak akkor települ, ha hiányzik. Valódi szerveren még nem próbáltuk.
+- **Podman változat**: `Containerfile` (AlmaLinux 9, Firefox ESR, geckodriver 0.37.1, uv 0.13.6, Python 3.12.10 a `.python-version` alapján, `TZ=Europe/Budapest`, `SYSTEM=linux`) + `.containerignore` + `scripts/otrbot-podman.sh build|test|run|shell`. A `run` a `--headless`-t magától hozzáteszi; csatolások: `data/` → `/app/data` (Excel + napló), `logs/` → `/app/logs`, `src/.env` → `/app/src/.env` (ro); mind `:Z` (SELinux). Rootless podmannal a fájlok a futtató felhasználó tulajdonába kerülnek. Az Excel útvonala konténeren belüli: `-f data/<fájl>.xlsx`. Helyben (Ubuntu, podman 4.9) kipróbálva: build, headless Firefox 1920×1080, kilépési kód, log a gazdagépen, `.env` idézőjeles jelszóval. Buktató: a `.python-version` nélkül az uv újabb Pythont választott, és a numpy forrásból akart fordulni. Valódi OTR futás a konténerből még nem volt.
+- Mellékmegfigyelés: a log időformátuma `%I` (12 órás, AM/PM nélkül) az `otr_logging.py`-ban; nem javítottuk.
 
 ## Mérés – EDU, 10 tétel (`data/be-tuzelo-teszt_2026.xlsx`)
 
@@ -79,7 +81,7 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 1. Ellenőrizni az EDU-ban 1-2 tételnél, hogy a `setValue`-val beírt mezők (megnevezés, összefoglalás, cél) helyesen mentődtek-e.
 2. EDU 100 tétel kész (lásd fent). Első éles futás kis adaggal (pl. `-sp VTM -e 20`), és utána a napló `eredmeny` nézetének és a log végének átnézése.
 3. Opcionális gyorsítások, EDU-ban kipróbálandók: `WebDriverConfig.PAGE_LOAD_STRATEGY = "eager"`, képek tiltása (`permissions.default.image`).
-4. AlmaLinux szerveren EDU próbafutás (`-b 1 -e 5 --headless`); az 1920×1080-as ablakkal is futtatni egy EDU kört, hogy ne romoljon el semmi.
+4. AlmaLinux szerveren EDU próbafutás (`-b 1 -e 5 --headless`, natívan vagy `scripts/otrbot-podman.sh run`-nal); az 1920×1080-as ablakkal is futtatni egy EDU kört, hogy ne romoljon el semmi.
 5. A 4. menet (Lezárás) továbbra sincs megvalósítva.
 6. Az IMPROVEMENT_PLAN.md fennmaradó pontjai.
 
