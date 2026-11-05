@@ -4,7 +4,7 @@ import otrbot.otr_logging as logging
 from pathlib import Path
 from dotenv import load_dotenv
 from otrbot.constants import WebDriverConfig
-from otrbot.runner import ModuleRunner
+from otrbot.runner import ModuleRunner, parse_rows
 from otrbot.config import Config
 from otrbot.journal import Journal
 
@@ -51,6 +51,7 @@ def main() -> int:
     parser.add_argument('-sp', '--supporter', type=str, required=True, help="Támogató [BM, KTM, VTM]")
     parser.add_argument('-b', '--begin', type=int, required=False, help="Első feldolgozandó rowid (alapértelmezés: az első sor)")
     parser.add_argument('-e', '--end', type=int, required=False, help="Utolsó feldolgozandó rowid (0 = az utolsó sorig)")
+    parser.add_argument('-r', '--rows', type=parse_rows, required=False, help="Csak ezek a rowid-k, vesszővel elválasztva (pl. 163,2360)")
     parser.add_argument('--headless', action='store_true', help="Böngésző ablak nélkül")
     
     args = parser.parse_args()
@@ -77,7 +78,7 @@ def main() -> int:
     logging.logger.info(f"Journal: {journal.path}")
     runner = ModuleRunner(supporter=args.supporter, journal=journal)
     try:
-      success = runner.load_datas(excel_file_path=args.file, sheet_name='betolt', begin=args.begin, end=args.end) \
+      success = runner.load_datas(excel_file_path=args.file, sheet_name='betolt', begin=args.begin, end=args.end, rows=args.rows) \
         .start_driver(options=get_driver_options(), system=config.system, headless=args.headless) \
         .login_otr(url=config.url, username=config.username, password=config.password) \
         .run(round=round_num)

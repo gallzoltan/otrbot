@@ -1,7 +1,7 @@
 import pytest
 from otrbot.journal import Journal, OK, FAILED
 from otrbot.models import Master, Address, Denomination, Deadline, Amount, Stack
-from otrbot.runner import ModuleRunner, FinalSubmitError, SubmittedUncertain
+from otrbot.runner import ModuleRunner, FinalSubmitError, SubmittedUncertain, parse_rows
 from otrbot.services.webdriver_service import StepFailed, StepTimings
 
 
@@ -45,11 +45,11 @@ def journal(tmp_path):
   j.close()
 
 
-def make_runner(journal, rowids, step, begin=None, end=None, otrids=None, **kwargs):
+def make_runner(journal, rowids, step, begin=None, end=None, rows=None, otrids=None, **kwargs):
   runner = ModuleRunner(supporter="BM", journal=journal, **kwargs)
   runner.datas = make_stack(rowids, otrids)
   journal.load_applicants((m.rowid, a.city, m.regid) for m, a in zip(runner.datas.masters, runner.datas.addresses))
-  runner._begin, runner._end = begin, end
+  runner._begin, runner._end, runner._rows = begin, end, rows
   runner.browser = FakeBrowser()
   runner.recovered = []
   runner._recover = lambda round, item, attempt: runner.recovered.append((item.master.rowid, attempt))
@@ -93,6 +93,39 @@ def test_begin_end_filter_on_rowid(journal):
   runner = make_runner(journal, [1, 2, 3, 4], lambda item: processed.append(item.master.rowid), begin=2, end=3)
   runner.run(1)
   assert processed == [2, 3]
+
+def test_rows_filter_on_rowid(journal):
+  processed = []
+  runner = make_runner(journal, [1, 2, 3, 4], lambda item: processed.append(item.master.rowid), rows={1, 4})
+  assert runner.run(1) is True
+  assert processed == [1, 4]
+  assert journal.status(2, 1) is None
+
+def test_rows_and_begin_end_both_apply(journal):
+  processed = []
+  runner = make_runner(journal, [1, 2, 3, 4], lambda item: processed.append(item.master.rowid), begin=2, rows={1, 2, 4})
+  runner.run(1)
+  assert processed == [2, 4]
+
+def test_rows_still_skips_done_and_submitted_items(journal):
+  journal.mark(1, 1, OK)
+  processed = []
+  runner = make_runner(journal, [1, 2, 3], lambda item: processed.append(item.master.rowid), rows={1, 2, 3}, otrids={2: "X2"})
+  assert runner.run(1) is True
+  assert processed == [3]
+
+@pytest.mark.parametrize("value, expected", [
+  ("163", {163}),
+  ("163,2360", {163, 2360}),
+  (" 163 , 2360, ", {163, 2360}),
+])
+def test_parse_rows(value, expected):
+  assert parse_rows(value) == expected
+
+@pytest.mark.parametrize("value", ["163,abc", "", " , ", "1.5"])
+def test_parse_rows_invalid(value):
+  with pytest.raises(ValueError):
+    parse_rows(value)
 
 def test_final_submit_error_is_not_retried(journal):
   calls = []
@@ -166,4 +199,12 @@ def test_load_datas_registers_all_rows_in_journal(journal, monkeypatch):
   monkeypatch.setattr(runner._bot.services, "read_excel_file", lambda path, sheet: make_stack([1, 2, 3]))
   runner.load_datas(excel_file_path="data.xlsx", sheet_name="betolt", begin=2, end=2)
   assert journal._conn.execute("SELECT rowid, city FROM applicants ORDER BY rowid").fetchall() == [(1, "City1"), (2, "City2"), (3, "City3")]
+  assert [item.master.rowid for item in runner._items()] == [2]
+
+def test_load_datas_warns_about_unknown_rows(journal, monkeypatch, caplog):
+  runner = ModuleRunner(supporter="BM", journal=journal)
+  monkeypatch.setattr(runner._bot.services, "read_excel_file", lambda path, sheet: make_stack([1, 2, 3]))
+  runner.load_datas(excel_file_path="data.xlsx", sheet_name="betolt", rows={2, 99})
+  assert "99" in caplog.text
+  assert journal._conn.execute("SELECT COUNT(*) FROM applicants").fetchone()[0] == 3
   assert [item.master.rowid for item in runner._items()] == [2]

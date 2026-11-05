@@ -3,7 +3,7 @@ import time
 import otrbot
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterator, Optional
+from typing import Callable, Dict, Iterator, Optional, Set
 from .constants import Navigate, SubmitForms, RunnerConfig
 from .journal import Journal, OK, FAILED
 from .models import Master, Address, Denomination, Deadline, Amount
@@ -29,6 +29,14 @@ class SubmittedUncertain(FinalSubmitError):
   """No result message after confirming: the item may or may not have been submitted."""
 
 
+def parse_rows(value: str) -> Set[int]:
+  """Parses a comma separated rowid list, e.g. '163,2360'; raises ValueError if it is invalid or empty."""
+  rows = {int(part) for part in value.split(",") if part.strip()}
+  if not rows:
+    raise ValueError(f"Empty rowid list: {value!r}")
+  return rows
+
+
 class ModuleRunner:
   def __init__(self, supporter: str, journal: Optional[Journal] = None,
                max_attempts: int = RunnerConfig.MAX_ATTEMPTS,
@@ -46,13 +54,18 @@ class ModuleRunner:
       3: self._run_round3
     }
 
-  def load_datas(self, excel_file_path, sheet_name, begin: Optional[int] = None, end: Optional[int] = None):
-    """Loads the Excel rows and registers them in the journal (applicants); begin/end filter on the rowid column (end=0 means no upper limit)."""
+  def load_datas(self, excel_file_path, sheet_name, begin: Optional[int] = None, end: Optional[int] = None, rows: Optional[Set[int]] = None):
+    """Loads the Excel rows and registers them in the journal (applicants); begin/end (end=0 means no upper limit) and rows filter on the rowid column."""
     self.datas = self._bot.services.read_excel_file(excel_file_path, sheet_name)
     if self._journal:
       self._journal.load_applicants((m.rowid, a.city, m.regid) for m, a in zip(self.datas.masters, self.datas.addresses))
     self._begin = begin
     self._end = end
+    self._rows = rows
+    if rows:
+      missing = rows - {m.rowid for m in self.datas.masters}
+      if missing:
+        self._logger.warning(f"Rowids not found in the excel file: {', '.join(str(r) for r in sorted(missing))}")
     self._logger.info("The datas has been loaded from excel file")
     return self
 
@@ -109,6 +122,8 @@ class ModuleRunner:
       if self._begin and rowid < self._begin:
         continue
       if self._end and rowid > self._end:
+        continue
+      if self._rows and rowid not in self._rows:
         continue
       yield item
 

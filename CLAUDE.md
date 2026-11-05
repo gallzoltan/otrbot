@@ -43,6 +43,9 @@ python src/main.py -s "Benyújtás" -f "data.xlsx" -sp "BM"
 # Unattended, without a browser window, only rowid 1..20
 python src/main.py -s "Benyújtás" -f "data.xlsx" -sp "VTM" -b 1 -e 20 --headless
 
+# Only the given rowids
+python src/main.py -s "Benyújtás" -f "data.xlsx" -sp "VTM" -r 163,2360
+
 # Portable mode (after setup)
 run.cmd -s "Benyújtás" -f "data.xlsx" -sp "BM"
 ```
@@ -72,6 +75,7 @@ pytest tests/test_decision_service.py
 ### Optional Arguments
 - `-b` / `--begin`: First `rowid` to process (filters on the Excel `rowid` column, not the Excel row number; default: first row)
 - `-e` / `--end`: Last `rowid` to process (default: 0, means all)
+- `-r` / `--rows`: Only these `rowid`s, comma separated (e.g. `-r 163,2360`). Applies together with `-b`/`-e`; a rowid that is not in the Excel gives a warning in the log. It only filters: `ok` items and (in round 1) items with an OTR id are still skipped, and OTR is not checked for an existing draft
 - `--headless`: Run Firefox without a window
 
 ### Unattended Run: Journal, Resume, Results

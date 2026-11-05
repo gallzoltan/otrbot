@@ -2,7 +2,7 @@
 
 Ez a fájl a fejlesztés állását rögzíti, hogy másik gépen (pl. otthon) is folytatható legyen. Claude: a munka elején olvasd el, a végén frissítsd.
 
-Utolsó frissítés: 2026-11-02
+Utolsó frissítés: 2026-11-05
 
 ## Mi volt a probléma
 
@@ -55,6 +55,14 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 - **Podman változat**: `Containerfile` (AlmaLinux 9, Firefox ESR, geckodriver 0.37.1, uv 0.13.6, Python 3.12.10 a `.python-version` alapján, `TZ=Europe/Budapest`, `SYSTEM=linux`) + `.containerignore` + `scripts/otrbot-podman.sh build|test|run|shell`. A `run` a `--headless`-t magától hozzáteszi; csatolások: `data/` → `/app/data` (Excel + napló), `logs/` → `/app/logs`, `src/.env` → `/app/src/.env` (ro); mind `:Z` (SELinux). Rootless podmannal a fájlok a futtató felhasználó tulajdonába kerülnek. Az Excel útvonala konténeren belüli: `-f data/<fájl>.xlsx`. Helyben (Ubuntu, podman 4.9) kipróbálva: build, headless Firefox 1920×1080, kilépési kód, log a gazdagépen, `.env` idézőjeles jelszóval. Buktató: a `.python-version` nélkül az uv újabb Pythont választott, és a numpy forrásból akart fordulni. Valódi OTR futás a konténerből még nem volt.
 - Mellékmegfigyelés: a log időformátuma `%I` (12 órás, AM/PM nélkül) az `otr_logging.py`-ban; nem javítottuk.
 
+### 7. Első éles Benyújtás kör, `-r/--rows` (2026-11-05)
+- `data/be-tuzelo_2026.xlsx`, 2628 tétel: 2601 `ok`, 27 `failed`, kb. 5,8 mp/tétel.
+- **25 tétel: `RogzitesKesz: A támogatási igény ellenőrzése 1 hibát talált!`** Az igénylő címéből hiányzik a Házszám (a felhasználó mind a 25-nél ezt találta; a cím az OTR-ből jön, nem az Excelből). A mentett oldalon `Címadatok - 1`, „Kötelező mező!” látszik; 14 oldalon a Házszám címke is hibásnak van jelölve, 10-en nincs mezőjelölés, a 16-os (Acsa) oldala nincs meg. **A hibás „Rögzítés kész” vázlatot hagy az OTR-ben** (a „Nyomtatás” gomb `ng-show="entity.id"` feltétele teljesül). A felhasználó ezeket kézzel javította.
+- **2 tétel: az Excel régiója nincs a legördülőben**, mert az OTR a helyszínhez csak egy régiót kínál: 163 Balatonvilágos (Excel: Közép-Dunántúl, OTR: Dél-Dunántúl), 2360 Tiszaug (Excel: Dél-Alföld, OTR: Észak-Alföld). Vázlat nem készült. Az Excelt a felhasználó javítja.
+- **Döntés:** a bot nem pótolja a címadatot, és nem keresi a vázlatokat. A felhasználó a naplót és az OTR azonosítókat kézzel írja át:
+  `UPDATE items SET status = 'ok', otrid = '<OTR azonosító>', error = 'Kézzel javítva az OTR-ben' WHERE rowid = <rowid> AND round = 1;`
+- **Új kapcsoló: `-r/--rows`** (pl. `-r 163,2360`), a `-b/-e`-vel együtt is érvényes. Csak szűr: az `ok` és az OTR azonosítós tételeket továbbra is kihagyja. **Buktató:** a `-r` nem nézi az OTR-t, ezért egy vázlatos tételhez új űrlapot kezd, és második vázlat vagy tétel keletkezhet. Ugyanez igaz a szűrő nélküli újrafuttatásra is, amíg a napló `failed`-et mutat.
+
 ## Mérés – EDU, 10 tétel (`data/be-tuzelo-teszt_2026.xlsx`)
 
 | Menet | Eredmény | Idő/tétel |
@@ -79,7 +87,7 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 
 ## Nyitott teendők
 1. Ellenőrizni az EDU-ban 1-2 tételnél, hogy a `setValue`-val beírt mezők (megnevezés, összefoglalás, cél) helyesen mentődtek-e.
-2. EDU 100 tétel kész (lásd fent). Első éles futás kis adaggal (pl. `-sp VTM -e 20`), és utána a napló `eredmeny` nézetének és a log végének átnézése.
+2. Az éles Benyújtás kész (2026-11-05, a `-r 163,2360` után mind a 2628 tétel `ok`). Következik az éles Döntés kör, előtte a felhasználó kézzel írja be az OTR azonosítókat.
 3. Opcionális gyorsítások, EDU-ban kipróbálandók: `WebDriverConfig.PAGE_LOAD_STRATEGY = "eager"`, képek tiltása (`permissions.default.image`).
 4. AlmaLinux szerveren EDU próbafutás (`-b 1 -e 5 --headless`, natívan vagy `scripts/otrbot-podman.sh run`-nal); az 1920×1080-as ablakkal is futtatni egy EDU kört, hogy ne romoljon el semmi.
 5. A 4. menet (Lezárás) továbbra sincs megvalósítva.
