@@ -1,4 +1,5 @@
 import logging
+import re
 import unidecode
 from enum import Enum
 from otrbot.models import SupportSearchTable
@@ -56,7 +57,7 @@ class SupportListService:
       self._logger.error(f"{council} : empty search result for otrid:{otrid} kid:{kid} regid:{regid}")
       return None
     rowlist = [SupportSearchTable(collist=collist) for collist in rows]
-    row = self._findRow(rows=rowlist, council=council, status=FillSupportList.STATUS.value[status], regid=regid)
+    row = self._findRow(rows=rowlist, council=council, status=FillSupportList.STATUS.value[status], regid=regid, otrid=otrid)
     self._logger.debug(f"{council} : {FillSupportList.STATUS.value[status]}")
     if(row):
       self._browser.clickElement(By.XPATH, FillSupportList.CLICK_ID.value.format(clickId=row.id))
@@ -68,17 +69,47 @@ class SupportListService:
     row = self._findRow(rows=rows, council=council, status=status)
     return row.id if row else None
 
-  def _findRow(self, rows: List[SupportSearchTable], council: str, status: str, regid: str = "") -> Optional[SupportSearchTable]:
-    council_accentless = unidecode.unidecode(council.lower()).split(' ')
+  def _findRow(self, rows: List[SupportSearchTable], council: str, status: str, regid: str = "", otrid: str = "") -> Optional[SupportSearchTable]:
+    """
+    Picks the grid row of the item. The tax number / OTR id and the status decide; the applicant name
+    (e.g. 'Sarudi Községi Önkormányzat' for Sarud) is only used to choose between several candidates.
+    """
     tax_prefix = self._digits(regid)[:8]
+    otrid = str(otrid or "").strip()
+    candidates = []
     for row in rows:
-      claimname_accentlesses = unidecode.unidecode(row.claim_name.lower()).split(' ')
-      self._logger.debug(f"extracted name: {council_accentless} from {claimname_accentlesses}")
+      self._logger.debug(f"{council} : candidate {row.otrid} '{row.claim_name}' {row.support_status} {row.tax_number}")
+      if row.support_status.lower() != status.lower():
+        continue
       if tax_prefix and not self._digits(row.tax_number).startswith(tax_prefix):
         continue
-      if (council_accentless[0] in claimname_accentlesses and row.support_status.lower() == status.lower()):                
+      if otrid and str(row.otrid).strip() != otrid:
+        continue
+      candidates.append(row)
+    if not candidates:
+      return None
+    for row in candidates:
+      if self._nameMatches(council, row.claim_name):
         return row
+    if len(candidates) == 1 and (tax_prefix or otrid):
+      row = candidates[0]
+      self._logger.warning(f"{council}: az OTR-beli igénylő neve eltér: '{row.claim_name}', elfogadva adószám/OTR azonosító alapján")
+      return row
+    self._logger.error(f"{council}: {len(candidates)} találat, egyik igénylő neve sem illik a településhez")
     return None
+
+  @staticmethod
+  def _tokens(text) -> List[str]:
+    return re.findall(r"[a-z0-9]+", unidecode.unidecode(str(text or "")).lower())
+
+  @classmethod
+  def _nameMatches(cls, council: str, name: str) -> bool:
+    """True if the first word of the council is a word of the name, allowing an adjective suffix (Sarud -> Sarudi)."""
+    council_tokens = cls._tokens(council)
+    if not council_tokens:
+      return False
+    first = council_tokens[0]
+    return any(token.startswith(first) and len(token) - len(first) <= 2 for token in cls._tokens(name))
 
   @staticmethod
   def _digits(value) -> str:

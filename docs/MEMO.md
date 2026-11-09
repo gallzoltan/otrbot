@@ -69,6 +69,11 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 - Döntés: 7 tétel az 1. próbálkozásra elhasalt (`dontes.tamkat_kategoria[0].idTamogatasiForma` select nem volt kezelhető), a 2. próbálkozás sikerült. 14 tételnél „<település> nevű önkormányzat nem található!”: az Excel településneve eltért az OTR-étől (pl. Sarud → Sarudi); a felhasználó javította az Excelt, és újrafuttatva (`otr_20261106_115225.log`, 14 tétel) mind `ok`.
 - Szerződés: 2628 tétel, egyetlen hiba és újrapróbálkozás nélkül.
 
+### 9. Robusztus találatkiválasztás a keresőben (2026-11-09)
+- Ok: az OTR-ben az igénylő neve melléknévi alakú („Sarudi Községi Önkormányzat”, „Tahitótfalui Közös Önkormányzati Hivatal”), a régi `_findRow` szó szerinti egyezést várt, ezért 14 tétel „nem található” lett. Az Excel Helység oszlopának átírása („Sarudi”) nem kell; vissza lehet állítani a valódi névre, mindkettővel működik.
+- `SupportListService._findRow`: a döntő az adószám első 8 jegye vagy az OTR azonosító + a státusz. A jelöltek közül az elsőt választja, amelynek a neve illik (`_nameMatches`: a település első szava egy név-szó eleje, legfeljebb 2 betű toldalékkal). Ha egyiké sem illik, de pontosan egy jelölt van, azt elfogadja WARNING-gal („az OTR-beli igénylő neve eltér”); több jelölt esetén `None`.
+- Tesztek: `tests/test_support_list_service.py`. EDU-ban még nem próbáltuk.
+
 ## Mérés – EDU, 10 tétel (`data/be-tuzelo-teszt_2026.xlsx`)
 
 | Menet | Eredmény | Idő/tétel |
@@ -96,8 +101,9 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 2. A tűzifás betöltés (2628 tétel) élesben mindhárom menetben kész (2026-11-09).
 3. Opcionális gyorsítások, EDU-ban kipróbálandók: `WebDriverConfig.PAGE_LOAD_STRATEGY = "eager"`, képek tiltása (`permissions.default.image`).
 4. AlmaLinux szerveren EDU próbafutás (`-b 1 -e 5 --headless`, natívan vagy `scripts/otrbot-podman.sh run`-nal); az 1920×1080-as ablakkal is futtatni egy EDU kört, hogy ne romoljon el semmi.
-5. A 4. menet (Lezárás) továbbra sincs megvalósítva.
-6. Az IMPROVEMENT_PLAN.md fennmaradó pontjai.
+5. Az új találatkiválasztás (9. pont) EDU-próbája egy Döntés körrel.
+6. A 4. menet (Lezárás) továbbra sincs megvalósítva.
+7. Az IMPROVEMENT_PLAN.md fennmaradó pontjai.
 
 ## Fontos fájlok
 - `src/otrbot/runner.py` – menetek, `_run_item`, `_recover`, `_fixingForm`, `_openExisting`
