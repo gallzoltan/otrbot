@@ -23,7 +23,7 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 
 ### 2. Gyorsítás
 - Egy várakozás interakciónként, 0,05 mp-es pollinggal (a Selenium alapértéke 0,5 mp volt, és lépésenként 3 várakozás).
-- `setValue` (JS) a hosszú szövegmezőkhöz: megnevezés, összefoglalás, cél.
+- `setValue` (JS) a hosszú szövegmezőkhöz: megnevezés, összefoglalás, cél. A felhasználó EDU-ban ellenőrizte (2026-11-09): helyesen mentődnek.
 - `readGrid` (JS): a keresés találati listáját egy hívással olvassa ki.
 - Animációk tiltása, `selectOption` megvárja a betöltődő opciót.
 - **`waitForPageIdle`**: minden fülkattintás után vár, amíg az AngularJS `$http` kérései befejeződnek. FONTOS: az app az `#otr_angular_inner` elemen fut (`ng-app="otrApplication"`), nem a `body`-n. E nélkül a Döntés fül aszinkron betöltése kiürítette a már kitöltött mezőket.
@@ -97,12 +97,10 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 - A commit parancsot a felhasználó kéri kiírva; az ágat ő hozza létre.
 
 ## Nyitott teendők
-1. Ellenőrizni az EDU-ban 1-2 tételnél, hogy a `setValue`-val beírt mezők (megnevezés, összefoglalás, cél) helyesen mentődtek-e.
-2. A tűzifás betöltés (2628 tétel) élesben mindhárom menetben kész (2026-11-09).
-3. Opcionális gyorsítások, EDU-ban kipróbálandók: `WebDriverConfig.PAGE_LOAD_STRATEGY = "eager"`, képek tiltása (`permissions.default.image`).
-4. AlmaLinux szerveren EDU próbafutás (`-b 1 -e 5 --headless`, natívan vagy `scripts/otrbot-podman.sh run`-nal); az 1920×1080-as ablakkal is futtatni egy EDU kört, hogy ne romoljon el semmi.
-5. A 4. menet (Lezárás) továbbra sincs megvalósítva.
-6. Az IMPROVEMENT_PLAN.md fennmaradó pontjai.
+1. Opcionális gyorsítások, EDU-ban kipróbálandók: `WebDriverConfig.PAGE_LOAD_STRATEGY = "eager"`, képek tiltása (`permissions.default.image`).
+2. AlmaLinux szerveren EDU próbafutás (`-b 1 -e 5 --headless`, natívan vagy `scripts/otrbot-podman.sh run`-nal); az 1920×1080-as ablakkal is futtatni egy EDU kört, hogy ne romoljon el semmi.
+3. A 4. menet (Lezárás) továbbra sincs megvalósítva.
+4. Az IMPROVEMENT_PLAN.md fennmaradó pontjai.
 
 ## Fontos fájlok
 - `src/otrbot/runner.py` – menetek, `_run_item`, `_recover`, `_fixingForm`, `_openExisting`
