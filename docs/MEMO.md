@@ -2,7 +2,7 @@
 
 Ez a fájl a fejlesztés állását rögzíti, hogy másik gépen (pl. otthon) is folytatható legyen. Claude: a munka elején olvasd el, a végén frissítsd.
 
-Utolsó frissítés: 2026-11-05
+Utolsó frissítés: 2026-11-09
 
 ## Mi volt a probléma
 
@@ -63,6 +63,12 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
   `UPDATE items SET status = 'ok', otrid = '<OTR azonosító>', error = 'Kézzel javítva az OTR-ben' WHERE rowid = <rowid> AND round = 1;`
 - **Új kapcsoló: `-r/--rows`** (pl. `-r 163,2360`), a `-b/-e`-vel együtt is érvényes. Csak szűr: az `ok` és az OTR azonosítós tételeket továbbra is kihagyja. **Buktató:** a `-r` nem nézi az OTR-t, ezért egy vázlatos tételhez új űrlapot kezd, és második vázlat vagy tétel keletkezhet. Ugyanez igaz a szűrő nélküli újrafuttatásra is, amíg a napló `failed`-et mutat.
 
+### 8. Éles Döntés és Szerződés kör kész (2026-11-05 – 11-09)
+- `data/be-tuzelo_2026.xlsx`, 2628 tétel: **mindhárom menetben 2628/2628 `ok`**, 2628 különböző OTR azonosító, a Döntés és a Szerződés menet azonosítói egyeznek.
+- Átlagidő a napló szerint: Benyújtás 6,0 mp, Döntés 7,1 mp, Szerződés 4,9 mp/tétel (gépidő összesen ≈ 13,2 óra; a teljes 2628 tétel ≈ 18 mp/tétel).
+- Döntés: 7 tétel az 1. próbálkozásra elhasalt (`dontes.tamkat_kategoria[0].idTamogatasiForma` select nem volt kezelhető), a 2. próbálkozás sikerült. 14 tételnél „<település> nevű önkormányzat nem található!”: az Excel településneve eltért az OTR-étől (pl. Sarud → Sarudi); a felhasználó javította az Excelt, és újrafuttatva (`otr_20261106_115225.log`, 14 tétel) mind `ok`.
+- Szerződés: 2628 tétel, egyetlen hiba és újrapróbálkozás nélkül.
+
 ## Mérés – EDU, 10 tétel (`data/be-tuzelo-teszt_2026.xlsx`)
 
 | Menet | Eredmény | Idő/tétel |
@@ -87,7 +93,7 @@ Egy támogatás három menete (Benyújtás → Döntés → Szerződés) együtt
 
 ## Nyitott teendők
 1. Ellenőrizni az EDU-ban 1-2 tételnél, hogy a `setValue`-val beírt mezők (megnevezés, összefoglalás, cél) helyesen mentődtek-e.
-2. Az éles Benyújtás kész (2026-11-05, a `-r 163,2360` után mind a 2628 tétel `ok`). Következik az éles Döntés kör, előtte a felhasználó kézzel írja be az OTR azonosítókat.
+2. A tűzifás betöltés (2628 tétel) élesben mindhárom menetben kész (2026-11-09).
 3. Opcionális gyorsítások, EDU-ban kipróbálandók: `WebDriverConfig.PAGE_LOAD_STRATEGY = "eager"`, képek tiltása (`permissions.default.image`).
 4. AlmaLinux szerveren EDU próbafutás (`-b 1 -e 5 --headless`, natívan vagy `scripts/otrbot-podman.sh run`-nal); az 1920×1080-as ablakkal is futtatni egy EDU kört, hogy ne romoljon el semmi.
 5. A 4. menet (Lezárás) továbbra sincs megvalósítva.
